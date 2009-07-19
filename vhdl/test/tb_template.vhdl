@@ -1,7 +1,9 @@
 --------------------------------------------------------------------------------
 -- Light8080 simulation test bench.
 --------------------------------------------------------------------------------
--- Source for the 8080 program is in asm\@PROGNAME@.asm
+-- This test bench was built from a generic template. The details on what tests
+-- are performed by this test bench can be found in the assembly source for the 
+-- 8080 program, in file asm\@PROGNAME@.asm.
 -------------------------------------------------------------------------------- 
 -- 
 -- This test bench provides a simulated CPU system to test programs. This test 
@@ -17,10 +19,12 @@
 -- vectors during inta cycles.
 --
 -- We will simulate 8 possible irq sources. The software can trigger any one of 
--- them by writing at registers 0x010 and 0x011. Register 0x010 holds the irq
--- source to be triggered (0 to 7) and register 0x011 holds the number of clock
--- cycles that will elapse from the end of the instruction that writes to the
--- register to the assertion of intr. 
+-- them by writing at ports 0x010 to 0x011. Port 0x010 holds the irq source to 
+-- be triggered (0 to 7) and port 0x011 holds the number of clock cycles that 
+-- will elapse from the end of the instruction that writes to the register to 
+-- the assertion of intr. Port 0x012 holds the number of cycles intr will remain 
+-- high. Intr will be asserted for 1 cycle at least, so writing a 0 here is the 
+-- same as writing 1.
 --
 -- When the interrupt is acknowledged and inta is asserted, the test bench reads
 -- the value at register 0x010 as the irq source, and feeds an instruction to 
@@ -30,10 +34,14 @@
 -- software to easily test different interrupt vectors without any hand 
 -- assembly. All of this is strictly simulation-only stuff.
 --
---
 -- Upon completion, the software must write a value to register 0x020. Writing 
--- a 0x055 means 'success', writing a 0x0aa means 'failure'. Success and 
--- failure conditions are defined by the software.
+-- a 0x055 means 'success', writing a 0x0aa means 'failure'. The write operation
+-- will stop the simulation. Success and failure conditions are defined by the 
+-- software.
+--
+-- If a time period defined as constant MAX_SIM_LENGTH passes before anything
+-- is written to io address 0x020, the test bench assumes the software ran away
+-- and quits with an error message.
 --------------------------------------------------------------------------------
 
 library ieee;
@@ -58,7 +66,7 @@ constant MAX_SIM_LENGTH : time := T*7000; -- enough for the tb0
 
 --------------------------------------------------------------------------------
 
-	-- Component Declaration for the Unit Under Test (UUT)
+-- Component Declaration for the Unit Under Test (UUT)
 component light8080
   port (  
     addr_out :  out std_logic_vector(15 downto 0);
@@ -110,6 +118,7 @@ signal rom : t_rom := (
 signal irq_vector_byte:   std_logic_vector(7 downto 0);
 signal irq_source :       integer range 0 to 7;
 signal cycles_to_intr :   integer range -10 to 255;
+signal intr_width :       integer range 0 to 255;
 signal int_vector_index : integer range 0 to 3;
 signal addr_vector_table: integer range 0 to 65535;
 
@@ -190,7 +199,6 @@ begin
   if (clk'event and clk='1') then
     if reset='1' then
       cycles_to_intr <= -10; -- meaning no interrupt pending
-      intr_i <= '0';
     else
       if io_o='1' and wr_o='1' and addr_o(7 downto 0)=X"11" then
         cycles_to_intr <= conv_integer(data_o) + 1;
@@ -198,16 +206,36 @@ begin
         if cycles_to_intr >= 0 then
           cycles_to_intr <= cycles_to_intr - 1;
         end if;
-        if cycles_to_intr = 0 then
-          intr_i <= '1';
-        else
-          intr_i <= '0';
-        end if;
       end if;
     end if;
   end if;
 end process irq_trigger_register;
 
+irq_pulse_width_register:
+process(clk)
+variable intr_pulse_countdown : integer;
+begin
+  if (clk'event and clk='1') then
+    if reset='1' then
+      intr_width <= 1;
+      intr_pulse_countdown := 0;
+      intr_i <= '0';
+    else
+      if io_o='1' and wr_o='1' and addr_o(7 downto 0)=X"12" then
+        intr_width <= conv_integer(data_o) + 1;
+      end if;
+
+      if cycles_to_intr = 0 then
+        intr_i <= '1';
+        intr_pulse_countdown := intr_width;
+      elsif intr_pulse_countdown <= 1 then
+        intr_i <= '0';
+      else
+        intr_pulse_countdown := intr_pulse_countdown - 1;
+      end if;
+    end if;
+  end if;
+end process irq_pulse_width_register;
 
 irq_source_register:
 process(clk)
