@@ -149,7 +149,7 @@ signal uc_halt_flag : std_logic;  -- uinst field, decoded 'halt' flag
 signal uc_halt :      std_logic;  -- halt command
 signal halt_reg :     std_logic;  -- halt status reg, output as 'halt' signal
 signal uc_ei :        std_logic;  -- uinst field, decoded 'ei' flag
-signal uc_di :        std_logic;  -- uinst field, decoded 'ei' flag
+signal uc_di :        std_logic;  -- uinst field, decoded 'di' flag
 signal inte_reg :     std_logic;  -- inte status reg, output as 'inte' signal
 signal int_pending :  std_logic;  -- intr requested, inta not active yet
 signal inta_reg :     std_logic;  -- inta status reg, output as 'inta'
@@ -159,6 +159,9 @@ signal clr_t2 :       std_logic;  -- uinst field, explicitly erase T2
 signal do_clr_t2 :    std_logic;  -- clr_t2 pipelined
 signal ucode :        std_logic_vector(31 downto 0); -- microcode word
 signal ucode_field2 : std_logic_vector(24 downto 0); -- pipelined microcode
+
+-- used to delay interrup enable for one entire instruction after EI
+signal delayed_ei :   std_logic;
 
 -- microcode ROM : see design notes and microcode source file 
 type t_rom is array (0 to 511) of std_logic_vector(31 downto 0);
@@ -774,6 +777,7 @@ signal logic_res :    std_logic_vector(7 downto 0);
 signal shift_res :    std_logic_vector(7 downto 0);    
 signal alu_mux1 :     std_logic_vector(7 downto 0);
     
+    
 begin
 
 DI <= data_in;
@@ -937,9 +941,19 @@ begin
   if clk'event and clk='1' then
     if reset = '1' then
       inte_reg <= '0';
+      delayed_ei <= '0';
     else 
-      if uc_di='1' or uc_ei='1' then
-        inte_reg <= uc_ei;
+      if (uc_di='1' or uc_ei='1') and uc_end='1' then
+        --inte_reg <= uc_ei;
+        delayed_ei <= uc_ei; -- FIXME DI must not be delayed
+      end if;
+      if uc_end = '1' then -- at the last cycle of every instruction...
+        if uc_di='1' then  -- ...disable interrupts if the instruction is DI...
+          inte_reg <= '0';
+        else
+          -- ...of enable interrupts after the instruction following EI
+          inte_reg <= delayed_ei;
+        end if;
       end if;
     end if;
   end if;
