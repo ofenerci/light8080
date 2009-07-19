@@ -8,9 +8,9 @@ quietly virtual signal -install /light8080_tb1/uut { (context /light8080_tb1/uut
 add wave -noupdate -divider External
 add wave -noupdate -format Logic /light8080_tb1/clk
 add wave -noupdate -format Logic /light8080_tb1/halt_o
-add wave -noupdate -format Logic /light8080_tb1/inte_o
-add wave -noupdate -format Logic /light8080_tb1/intr_i
-add wave -noupdate -format Logic /light8080_tb1/inta_o
+add wave -noupdate -color {Medium Sea Green} -format Logic /light8080_tb1/inte_o
+add wave -noupdate -color Firebrick -format Logic /light8080_tb1/intr_i
+add wave -noupdate -color White -format Logic /light8080_tb1/inta_o
 add wave -noupdate -color {Lime Green} -format Literal -radix hexadecimal /light8080_tb1/data_i
 add wave -noupdate -color {Cadet Blue} -format Literal -radix hexadecimal /light8080_tb1/data_o
 add wave -noupdate -format Literal -radix hexadecimal /light8080_tb1/addr_o
@@ -27,7 +27,7 @@ add wave -noupdate -color Pink -format Literal -itemcolor Pink -label BC -radix 
 add wave -noupdate -color {Indian Red} -format Literal -itemcolor {Indian Red} -label DE -radix hexadecimal /light8080_tb1/uut/DE
 add wave -noupdate -color {Yellow Green} -format Literal -itemcolor {Yellow Green} -label HL -radix hexadecimal /light8080_tb1/uut/HL
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {81481481 ps} 0}
+WaveRestoreCursors {{Cursor 1} {18600000 ps} 0}
 configure wave -namecolwidth 150
 configure wave -valuecolwidth 70
 configure wave -justifyvalue left
@@ -41,4 +41,4 @@ configure wave -gridperiod 1
 configure wave -griddelta 40
 configure wave -timeline 0
 update
-WaveRestoreZoom {49383750 ps} {126558750 ps}
+WaveRestoreZoom {13303347 ps} {23802163 ps}
