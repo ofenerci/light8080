@@ -214,7 +214,7 @@ comeback:
         nop
         nop
         nop
-        cpi     02ch
+        cpi     02bh
         jnz     fail        
         
         
