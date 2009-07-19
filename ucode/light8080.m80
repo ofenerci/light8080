@@ -14,10 +14,10 @@
 // and writes it back somewhere; and the flags group all other microinstruction 
 // control signals.
 //  
-// For any given instruction, operation 2 takes place in the cycle following 
-// operation 1. It happens concurrently with the next instruction's operation 1,
-// so whenever a register is written to in an operation 2 it will NOT be 
-// available for the next instruction.
+// For any given microinstruction, operation 2 takes place in the cycle after 
+// operation 1. It happens concurrently with the next microinstruction's 
+// operation 1, so whenever a register is written to in an operation 2 it will 
+// NOT be available for the next microinstruction.
 //
 // In operation 1, you may load any one of T1 or T2 from the register bank or
 // from DI which is simply the unregistered signal data_in.
@@ -51,9 +51,9 @@
 // #ret :     Jump to address saved by the last JST or TJSR m.i.
 // #rd :      Activate rd signal for the 2nd cycle.
 // #wr :      Activate wr signal for the 2nd cycle.
-// #fp_r :    This instruction updates all PSW flags except for C.
-// #fp_c :    This instruction updates only the C flag in the PSW.
-// #fp_rc :   This instruction updates all the flags in the PSW.
+// #fp_r :    This microinstruction updates all PSW flags except for C.
+// #fp_c :    This microinstruction updates only the C flag in the PSW.
+// #fp_rc :   This microinstruction updates all the flags in the PSW.
 // #clrt1 :   Clear T1 at the end of 1st cycle.
 // #io :      Activate io signal for 1st cycle.
 // #ei :      Set interrupt enable register.
@@ -536,7 +536,7 @@ T1 = _pl      ; DO = T1       ; #clrt1
 JSR push
 NOP           ; _pl = rst     ; #clrt1
 NOP           ; _ph = AND     ; #end  // T1 & T2 = 0, because T2=0
-// No extra cycle needed, _ph is not used in the next instruction
+// No extra cycle needed, _ph is not used in the next microinstruction
 
 __code  "11101001"
 __asm   PCHL
