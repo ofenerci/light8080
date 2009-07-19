@@ -21,6 +21,9 @@ intr_trigger: .equ 11h
 ; interrupt logic will feed the CPU the instruction at memory address
 ; 40h+source*4. See vhdl\test\tb_template.vhdl for details.
 intr_source:  .equ 10h
+; The value OUTput to this port is the number of cycles the intr signal will 
+; remain high after being asserted. By default this is 1 cycle.
+intr_width:   .equ 12h
 ; OUTing something here will stop the simulation. A 0x055 will signal a 
 ; success, a 0x0aa a failure.
 test_outcome: .equ 20h
@@ -32,13 +35,14 @@ test_outcome: .equ 20h
         
         ; used to test that RST works
         .org    20H
-        adi     7H
+        adi     1H
         ei
         ret
         
         ; used to test the RST instruction as intr vector
         .org    28H
-        mov     b,a
+        inr     a
+        ei
         ret
                 
         ;***** simulated interrupt vectors in area 0040h-005fh *****************
@@ -46,7 +50,7 @@ test_outcome: .equ 20h
         .org    40h+(0*4)       ; simulated interrupt vector 0 
         inr     a
         .org    40h+(1*4)       ; simulated interrupt vector 1
-        rst     1
+        rst     5
         .org    40h+(2*4)       ; simulated interrupt vector 2
         inx     h
         .org    40h+(3*4)       ; simulated interrupt vector 3
@@ -69,8 +73,8 @@ start:  .org    60H
         ; first of all, make sure the RST instruction works, we have a valid
         ; simulated stack, etc.
         mvi     a,13h
-        rst     4               ; this should add 7 to ACC
-        cpi     1ah
+        rst     4               ; this should add 1 to ACC
+        cpi     14h
         jnz     fail
         
         ; now we'll try a few different interrupt vectors (single byte and 
@@ -84,25 +88,25 @@ start:  .org    60H
         mvi     a,014h
         out     intr_trigger
         mvi     a,027h
-        nop
+        nop                       ; the interrupt will hit in this nop area
         nop
         nop
         nop
         cpi     028h
         jnz     fail
         
-        ; another single-byte vector: RST 1
+        ; another single-byte vector: RST 5
         mvi     a,1
         out     intr_source
         ei
         mvi     a,014h
-        out     intr_trigger      ; the interrupt vector will do a rst 1, and
-        mvi     a,020h            ; the rst routine will add 7 to the ACC 
+        out     intr_trigger      ; the interrupt vector will do a rst 5, and
+        mvi     a,020h            ; the rst routine will add 1 to the ACC 
         nop                       ; and reenable interrupts
         nop
         nop
         nop
-        cpi     027h
+        cpi     021h
         jnz     fail
         
         ; another single-byte code: INX H
@@ -185,6 +189,34 @@ comeback:
         nop
         nop                     
         nop
+        
+        ; Ok. So far we have tested only 1-cycle intr assertions. Now we'll
+        ; see what happens when we leave intr asserted for a long time (as would
+        ; happen intr was used for single-step debugging, for instance)
+        
+        ; try single-byte interrupt vector (INR A)
+        mvi     a, 80
+        out     intr_width
+        mvi     a,1
+        out     intr_source
+        ei
+        mvi     a,014h
+        out     intr_trigger
+        mvi     a,027h
+        nop                       ; the interrupts will hit in this nop area
+        nop
+        inr     a
+        nop
+        nop
+        inr     a
+        nop
+        nop
+        nop
+        nop
+        nop
+        cpi     02ch
+        jnz     fail        
+        
         
         ; finished, run into the success outcome code
 
