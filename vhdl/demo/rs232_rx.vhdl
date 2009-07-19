@@ -1,17 +1,20 @@
 --##############################################################################
--- RS-232 receiver, hardwired to 9600 bauds when clocked at 50MHz.
+-- RS-232 receiver, parametrizable bit rate through generics.
+-- Bit rate defaults to 19200 bps @50MHz.
 -- WARNING: Hacked up for light8080 demo. Poor performance, no formal testing!
--- I don't advise using this for any purpose.
+-- I don't advise using this in for any general purpose.
 --##############################################################################
 
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.STD_LOGIC_ARITH.ALL;
-use IEEE.STD_LOGIC_UNSIGNED.ALL;
-
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_arith.all;
+use ieee.std_logic_unsigned.all;
 
 entity rs232_rx is
-    Port ( 
+  generic (
+    BAUD_RATE     : integer := 19200;
+    CLOCK_FREQ    : integer := 50000000);
+    port ( 
         rxd       : in std_logic;
         
         data_rx   : out std_logic_vector(7 downto 0);
@@ -22,7 +25,10 @@ entity rs232_rx is
         reset     : in std_logic);
 end rs232_rx;
 
-architecture demo of rs232_rx is
+architecture hardwired of rs232_rx is
+
+-- Bit sampling period is 1/16 of the baud rate
+constant SAMPLING_PERIOD : integer := (CLOCK_FREQ / BAUD_RATE) / 16;
 
 
 --##############################################################################
@@ -43,7 +49,7 @@ signal do_shift :         std_logic;
 signal rx_buffer :        std_logic_vector(7 downto 0);
 signal rx_shift_reg :     std_logic_vector(9 downto 0);
 signal tick_ctr_enable :  std_logic;
-signal tick_baud_ctr :    integer;
+signal tick_baud_ctr :    std_logic_vector(10 downto 0);
 
 signal rx_rdy_flag :      std_logic;
 signal set_rx_rdy_flag :  std_logic;
@@ -55,10 +61,10 @@ process(clk)
 begin
   if clk'event and clk='1' then
     if reset='1' then
-      tick_baud_ctr <= 0;
+      tick_baud_ctr <= (others => '0');
     else
-      if tick_baud_ctr=325 then
-        tick_baud_ctr <= 0;
+      if conv_integer(tick_baud_ctr)=SAMPLING_PERIOD then -- 325 for 9600 bps
+        tick_baud_ctr <= (others => '0');
       else
         tick_baud_ctr <= tick_baud_ctr + 1;
       end if;
@@ -66,7 +72,7 @@ begin
   end if;
 end process;
 
-tick_ctr_enable <= '1' when tick_baud_ctr=325 else '0';
+tick_ctr_enable<= '1' when conv_integer(tick_baud_ctr)=SAMPLING_PERIOD else '0';
 
 process(clk)
 begin
@@ -215,4 +221,4 @@ rx_rdy <= rx_rdy_flag;
 
 data_rx <= rx_buffer;
 
-end demo;
+end hardwired;
