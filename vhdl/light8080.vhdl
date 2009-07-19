@@ -74,15 +74,23 @@ end light8080;
 --
 -- Signal intr is sampled on all positive clock edges. If asserted when inte is
 -- high, interrupts will be disabled, inta will be asserted high and a fetch 
--- cycle will occur. The fetched instruction will be executed normally, except 
--- PC will not be valid in any subsequent fetch cycles of the same instruction, 
+-- cycle will occur immediately after the current instruction ends execution,
+-- except if intr was asserted at the last cycle of an instruction. In that case
+-- it will be honored after the next instruction ends.
+-- The fetched instruction will be executed normally, except that PC will not 
+-- be valid in any subsequent fetch cycles of the same instruction, 
 -- and will not be incremented (In practice, the same as the original 8080).
--- inta will remain high for the duration of the fetched instruction (in the 
--- original 8080 it was high only for the opcode fetch cycle). 
+-- inta will remain high for the duration of the fetched instruction, including
+-- fetch and execution time (in the original 8080 it was high only for the 
+-- opcode fetch cycle). 
 -- PC will not be autoincremented while inta is high, but it can be explicitly 
--- modified (e.g. RTS, CALL, etc.). Again, the same as the original.
+-- modified (e.g. RST, CALL, etc.). Again, the same as the original.
 -- Interrupts will be disabled upon assertion of inta, and remain disabled 
 -- until explicitly enabled by the program (as in the original).
+-- If intr is asserted when inte is low, the interrupt will not be attended but
+-- it will be registered in an int_pending flag, so it will be honored when 
+-- interrupts are enabled.
+-- 
 --
 -- The above means that any instruction can be supplied in an inta cycle, 
 -- either single byte or multibyte. See the design notes.
@@ -939,16 +947,22 @@ end process;
 
 inte <= inte_reg;
 
--- interrupts are ignored when inte='0'
+-- interrupts are ignored when inte='0' but they are registered and will be
+-- honored when interrupts are enabled
 process(clk)
 begin
   if clk'event and clk='1' then
     if reset = '1' then
       int_pending <= '0';
     else 
-      if intr = '1' and inte_reg = '1' and int_pending = '0' then
+      -- intr will raise int_pending only if inta has not been asserted. 
+      -- Otherwise, if intr overlapped inta, we'd enter a microcode endless 
+      -- loop, executing the interrupt vector again and again.
+      if intr='1' and inte_reg='1' and int_pending='0' and inta_reg='0' then
         int_pending <= '1';
       else 
+        -- int_pending is cleared when we're about to service the interrupt, 
+        -- that is when interrupts are enabled and the current instruction ends.
         if inte_reg = '1' and uc_end='1' then
           int_pending <= '0';
         end if;
@@ -1324,6 +1338,8 @@ end microcoded;
 --            1     2     3     4     5     6     7     8     
 --             __    __    __    __    __    __    __    __   
 -- clk      __/  \__/  \__/  \__/  \__/  \__/  \__/  \__/  \__
+--
+--          ==|=====|=====|=====|=====|=====|=====|=====|=====|
 --
 -- addr_o   xxxxxxxxxxxxxx< ADR >xxxxxxxxxxx< ADR >xxxxxxxxxxx
 --
