@@ -9,6 +9,7 @@
 -- 22h : out        general control port
 -- 40h : in         switches
 -- 40h : out        green leds
+-- 50h : out        single-step trace control port
 
 --#############################################################################
 -- CONTROL PORT
@@ -20,11 +21,16 @@
 -- SD card interface
 -- TODO doc this!
 --#############################################################################
+-- SINGLE-STEP TRACE CONTROL PORT
+-- (0) enable single step interrupt:  '0'=disable, '1'=enable
+-- The interrupt request line intr is directly connected to this bit.
+--#############################################################################
 
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.STD_LOGIC_ARITH.ALL;
-use IEEE.STD_LOGIC_UNSIGNED.ALL;
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_arith.all;
+use ieee.std_logic_unsigned.all;
+
 
 -- NOTE: all that's necessary for the demo is the SRAM and the SD interface.
 entity c2sb_cpm_cpu is
@@ -74,9 +80,7 @@ entity c2sb_cpm_cpu is
     );
 end c2sb_cpm_cpu;
 
-architecture flash of c2sb_cpm_cpu is
-
-
+architecture sd_card of c2sb_cpm_cpu is
 
 component light8080
 port (  
@@ -214,6 +218,8 @@ signal reg_sd_dout :      std_logic;
 signal reg_sd_clk :       std_logic;
 signal reg_sd_cs :        std_logic;
 
+-- Single step interrupt register
+signal reg_trace :        std_logic_vector(7 downto 0);
 
 begin
 
@@ -267,6 +273,7 @@ begin
       reg_control <= X"00";
       reg_display_h <= X"00";
       reg_display_l <= X"00";
+      reg_trace <= X"00";
       reg_sd_dout <= '0';
       reg_sd_clk <= '0';
       reg_sd_cs <= '0';
@@ -284,6 +291,9 @@ begin
         if addr(7 downto 0)=X"24" then
           reg_display_h <= data_out;
         end if;
+        if addr(7 downto 0)=X"50" then
+          reg_trace <= data_out;
+        end if;
         if addr(7 downto 1)="1001000" then -- 80h,81h
           reg_sd_dout <= addr(0);
         end if;
@@ -300,7 +310,7 @@ end process;
 
 
 -- CPU control signals
-intr <= switches(8); -- TODO debug!
+intr <= reg_trace(0); -- the only intr source is the trace function
 
 -- CPU instance
 cpu: light8080 port map(
@@ -355,7 +365,7 @@ red_leds(5) <= inta;
 -- mem vs. io input mux
 data_in <=  data_io_in    when io_q='1' and inta='0' else -- I/O port data 
             data_mem_in   when io_q='0' and inta='0' else -- MEM data
-            X"ff";                                        -- IRQ vector
+            X"ff";                                        -- IRQ vector (RST 7)
 
 -- io read enable (for async io ports; data read in cycle following io='1')
 io_read <= '1' when io_q='1' and rd_q='1' else '0';
@@ -467,7 +477,7 @@ green_leds <= sd_in & reg_sd_dout & "000" & reg_sd_cs & reg_sd_clk & clk;
 -- QUAD 7-SEGMENT DISPLAYS
 --##############################################################################
 
-
+-- we'll be displaying valid memory addresses in the hex display
 process(clk)
 begin
   if clk'event and clk='1' then
@@ -480,6 +490,7 @@ end process;
 --display_data <= addr(15 downto 0) when switches(9)='1' else
 --                reg_display_h & reg_display_l;
 
+-- 7-segment encoders; the dev board displays are not multiplexed or encoded
 
 with display_data(15 downto 12) select hex3 <=  
 "0000001" when X"0","1001111" when X"1","0010010" when X"2","0000110" when X"3",
@@ -542,4 +553,4 @@ serial_tx : rs232_tx port map(
 rs232_status <= (not tx_rdy) & "000000" & (not rx_rdy);
 
 
-end flash;
+end sd_card;
