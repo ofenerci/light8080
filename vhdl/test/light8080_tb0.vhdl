@@ -455,9 +455,9 @@ begin
         if cycles_to_intr >= 0 then
           cycles_to_intr <= cycles_to_intr - 1;
         end if;
-        if cycles_to_intr = 0 then
+        if cycles_to_intr = 0 and inta_o = '0' then
           intr_i <= '1';
-        else
+        elsif inta_o = '1' then
           intr_i <= '0';
         end if;
       end if;
