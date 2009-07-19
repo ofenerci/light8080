@@ -27,6 +27,7 @@
 ; 2.- Commented out all Altair / MITS hardware related stuff
 ; 3.- Set origin at 0H
 ; 
+; Modified again in 2008 to make it compatible with TASM assembler.
 ;***********************************************************************
 
 ; DS pseudo-directive; reserve space in bytes, without initializing it
