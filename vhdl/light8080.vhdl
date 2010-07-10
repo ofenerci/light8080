@@ -1,6 +1,7 @@
 --##############################################################################
 -- light8080 : Intel 8080 binary compatible core
 --##############################################################################
+-- v1.2    (08 jul 2010) Fix: XOR operations were not clearing CY,ACY.
 -- v1.1    (20 sep 2008) Microcode bug in INR fixed.
 -- v1.0    (05 nov 2007) First release. Jose A. Ruiz.
 --
@@ -727,6 +728,7 @@ signal do_cy_op_d :   std_logic; -- do_cy_op, pipelined
 signal do_cpc :       std_logic; -- ALU operation is CPC
 signal do_cpc_d :     std_logic; -- do_cpc, pipelined
 signal do_daa :       std_logic; -- ALU operation is DAA
+signal do_xor :       std_logic; -- ALU operation is some XOR (clears CY)
 signal flag_ac :      std_logic; -- new computed half carry flag
 -- flag_aux_cy: new computed half carry flag (used in 16-bit ops)
 signal flag_aux_cy :  std_logic;
@@ -1121,7 +1123,8 @@ flag_pattern <=  ucode_field2(9 downto 8);
 use_aux_cy <= ucode_field2(19);
 do_cpc <= ucode_field2(23);
 do_cy_op <= ucode_field2(24);
-do_daa <= '1' when ucode_field2(5 downto 2) = "1010" else '0';    
+do_daa <= '1' when ucode_field2(5 downto 2) = "1010" else '0';
+do_xor <= '1' when ucode_field2(5 downto 0) = "000101" else '0';
   
 aux_cy_in <= reg_aux_cy when set_aux_cy = '0' else '1';
 
@@ -1227,9 +1230,15 @@ flag_s <= alu_output(7);
 flag_p <= not(alu_output(7) xor alu_output(6) xor alu_output(5) xor alu_output(4) xor
          alu_output(3) xor alu_output(2) xor alu_output(1) xor alu_output(0));
 flag_z <= '1' when alu_output=X"00" else '0';
-flag_ac <= (arith_op1(4) xor arith_op2_sgn(4) xor alu_output(4));
+-- FIXED 08/JUL/2010: XOR was  not clearing AC as it should
+--flag_ac <= (arith_op1(4) xor arith_op2_sgn(4) xor alu_output(4));
+flag_ac <= (arith_op1(4) xor arith_op2_sgn(4) xor alu_output(4)) and not do_xor;
 
-flag_cy_1 <= cy_arith when use_logic = '1' else cy_shifter;
+-- FIXED 08/JUL/2010: XOR was not clearing CY as it should
+--flag_cy_1 <= cy_arith when use_logic = '1' else cy_shifter;
+flag_cy_1 <=  '0'       when do_xor='1' else
+              cy_arith  when use_logic = '1' and do_xor='0' else
+              cy_shifter;
 flag_cy_2 <= not flag_reg(0) when do_cpc='0' else '1'; -- cmc, stc
 flag_cy <= flag_cy_1 when do_cy_op='0' else flag_cy_2;
   
