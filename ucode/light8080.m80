@@ -66,8 +66,8 @@
 __reset 
 
 NOP           ; NOP                     
-NOP           ; _pl = AND			;								  // T1 & T2 = 0x00
-NOP           ; _ph = AND     ;								  // T1 & T2 = 0x00
+NOP           ; _pl = AND     ;                 // T1 & T2 = 0x00
+NOP           ; _ph = AND     ;                 // T1 & T2 = 0x00
 
 // FETCH ucode: from 3 to 6 
 // (executed in INTA cycles too, with pc increment inhibited to preserve PC)
@@ -99,7 +99,7 @@ NOP           ; {d} = T1      ; #end
 __code  "01ddd110"
 __asm   MOV {d},M 
 
-JSR read_m		;
+JSR read_m    ;
 NOP           ; {d} = T1      ; #end  
 
 
@@ -740,8 +740,8 @@ T1 = DI       ; _w = T1       ; #ret
 :push
 T2 = _sl      ; _sl = SBB     ; #auxcy, #setacy 
 T2 = _sh      ; _sh = SBB     ; #auxcy 
-T1 = _sl			; NOP						; #ld_al
-T1 = _sh			; NOP						; #ld_addr, #wr,
+T1 = _sl      ; NOP           ; #ld_al
+T1 = _sh      ; NOP           ; #ld_addr, #wr,
 NOP           ; NOP           ; #ret   // extra line, flag clash
 
 
@@ -750,7 +750,7 @@ NOP           ; NOP           ; #ret   // extra line, flag clash
 :pop
 T1 = _sl      ; _sl = ADC     ; #ld_al, #auxcy, #setacy
 T1 = _sh      ; _sh = ADC     ; #ld_addr, #rd, #auxcy
-T1 = DI       ; NOP					  ; #ret	// extra line, flag clash
+T1 = DI       ; NOP           ; #ret  // extra line, flag clash
 
 
 // End of file
