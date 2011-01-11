@@ -381,33 +381,33 @@ signal addr_vector_table: integer range 0 to 65535;
 
 begin
 
-	-- Instantiate the Unit Under Test (UUT)
-	uut: light8080 PORT MAP(
-		clk => clk,
-		reset => reset,
-		vma => vma_o,
-		rd => rd_o,
-		wr => wr_o,
-		io => io_o,
-		fetch => fetch_o,
-		addr_out => addr_o, 
-		data_in => data_i,
-		data_out => data_o,
-		
-		intr => intr_i,
-		inte => inte_o,
-		inta => inta_o,
-		halt => halt_o
-	);
+  -- Instantiate the Unit Under Test (UUT)
+  uut: light8080 PORT MAP(
+    clk => clk,
+    reset => reset,
+    vma => vma_o,
+    rd => rd_o,
+    wr => wr_o,
+    io => io_o,
+    fetch => fetch_o,
+    addr_out => addr_o, 
+    data_in => data_i,
+    data_out => data_o,
+    
+    intr => intr_i,
+    inte => inte_o,
+    inta => inta_o,
+    halt => halt_o
+  );
 
 
 -- clock: run clock until test is done
 clock:
 process(done, clk)
 begin
-	if done = '0' then
-		clk <= not clk after T/2;
-	end if;
+  if done = '0' then
+    clk <= not clk after T/2;
+  end if;
 end process clock;
 
 
@@ -415,25 +415,25 @@ end process clock;
 main_test:
 process
 begin
-	-- Assert reset for at least one full clk period
-	reset <= '1';
-	wait until clk = '1';
-	wait for T/2;
-	reset <= '0';
+  -- Assert reset for at least one full clk period
+  reset <= '1';
+  wait until clk = '1';
+  wait for T/2;
+  reset <= '0';
 
-	-- Remember to 'cut away' the preceding 3 clk semiperiods from 
-	-- the wait statement...
-	wait for (MAX_SIM_LENGTH - T*1.5);
+  -- Remember to 'cut away' the preceding 3 clk semiperiods from 
+  -- the wait statement...
+  wait for (MAX_SIM_LENGTH - T*1.5);
 
-	-- Maximum sim time elapsed, assume the program ran away and
-	-- stop the clk process asserting 'done' (which will stop the simulation)
-	done <= '1';
-	
+  -- Maximum sim time elapsed, assume the program ran away and
+  -- stop the clk process asserting 'done' (which will stop the simulation)
+  done <= '1';
+  
   assert (done = '1') 
-	report "Test timed out."
-	severity failure;
-	
-	wait;
+  report "Test timed out."
+  severity failure;
+  
+  wait;
 end process main_test;
 
 
