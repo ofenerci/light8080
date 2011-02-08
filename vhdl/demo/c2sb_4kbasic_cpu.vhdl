@@ -33,7 +33,7 @@ use ieee.std_logic_arith.all;
 use ieee.std_logic_unsigned.all;
 
 -- Many of the board's i/o devices will go unused
-entity c2sb_4kbasic is
+entity c2sb_4kbasic_cpu is
     port ( 
         -- ***** Clocks
         clk_50MHz     : in std_logic;
@@ -78,9 +78,9 @@ entity c2sb_4kbasic is
         sd_cmd        : out std_logic;
         sd_clk        : out std_logic           
     );
-end c2sb_4kbasic;
+end c2sb_4kbasic_cpu;
 
-architecture minimal of c2sb_4kbasic is
+architecture minimal of c2sb_4kbasic_cpu is
 
 component light8080
 port (  
