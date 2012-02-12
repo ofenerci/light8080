@@ -16,17 +16,17 @@
 $usage = "Use: hexconv.pl <hexfile> <template file> <start addr> <table size>";
 
 # read command line arguments; HEX file name...
-$file = shift(ARGV);
+$file = shift(@ARGV);
 if($file eq ''){die $usage};
 # ...VHDL template file name...
-$template = shift(ARGV);
+$template = shift(@ARGV);
 if($template eq ''){die $usage};
 # ...object code start address...
-$start_addr = shift(ARGV);
+$start_addr = shift(@ARGV);
 if($start_addr eq ''){die $usage};
 $start_addr = hex $start_addr;
 # ...and VHDL table size
-$table_size = shift(ARGV);
+$table_size = shift(@ARGV);
 if($table_size eq ''){die $usage};
 $table_size = hex $table_size;
 
