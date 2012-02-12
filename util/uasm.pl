@@ -24,9 +24,9 @@
 # Assembler format (informal definition, source is the ultimate reference!):
 #
 #<microinstruction line> := 
-#		[<label>] | (*1)
-#		<operand stage control> ; <ALU stage control> [; [<flag list>]] |
-#		JSR <destination address>|TJSR <destination address>
+#    [<label>] | (*1)
+#    <operand stage control> ; <ALU stage control> [; [<flag list>]] |
+#    JSR <destination address>|TJSR <destination address>
 #
 #<label> := {':' immediately followed by a common identifier}
 #<destination address> := {an identifier defined as label anywhere in the file}
@@ -41,11 +41,11 @@
 #            t1|rst|daa|cpc|sec|psw
 #<flag list> := <flag> [, <flag> ...] 
 #<flag> := #decode|#di|#ei|#io|#auxcy|#clrt1|#halt|#end|#ret|#rd|#wr|#setacy 
-#          #ld_al|#ld_addr|#fp_c|#fp_r|#fp_rc	(*2)
+#          #ld_al|#ld_addr|#fp_c|#fp_r|#fp_rc  (*2)
 #
-#	*1 Labels appear alone by themselves in a line
-#	*2 There are some restrictions on the flags that can be used together
-#	*3 Registers are specified by IR field
+#  *1 Labels appear alone by themselves in a line
+#  *2 There are some restrictions on the flags that can be used together
+#  *3 Registers are specified by IR field
 #
 ################################################################################
 # ALU operations 
@@ -224,10 +224,10 @@ $num_errors = 0;
 
 LINE: foreach $line (@lines) {
 
-	$num_line++;
-	
-	$line =~ tr/A-Z/a-z/;
-	$line =~ s/(--|\/\/).*//;
+  $num_line++;
+  
+  $line =~ tr/A-Z/a-z/;
+  $line =~ s/(--|\/\/).*//;
   $line =~ s/^\s*//g;
   $line =~ s/\s*\$//g;
   chomp($line);
@@ -250,14 +250,14 @@ LINE: foreach $line (@lines) {
     next;
   }
 
-	# if $line is a label declaration, get it and skip to next line
+  # if $line is a label declaration, get it and skip to next line
   # note labels come alone in the line, unlike other assemblers
   # TODO it'd be simple to change this...
-	if($line =~ /^\s*:(\w+)/){
-		# subroutine label (labels are only used for jsrs)
-		$labels{$1} = $addr;
-		next;
-	}
+  if($line =~ /^\s*:(\w+)/){
+    # subroutine label (labels are only used for jsrs)
+    $labels{$1} = $addr;
+    next;
+  }
 
   # if line is a pragma, process it
   if($line =~ /^\s*__/){
@@ -293,13 +293,13 @@ LINE: foreach $line (@lines) {
   @fields = split /;/, $line;
 
   # process 1st field...
-	$done = process_field1($fields[0]);
+  $done = process_field1($fields[0]);
   
   # ...and process 2nd field if there is one (depends on field1 format)
   # TODO check that there's no field2 when there shouldn't  
-	if($done != 1){
+  if($done != 1){
     $done = process_field2($fields[1]);
-	}  
+  }  
 
   # finally, process extra flags produced by field1 assembly (jsr/tjsr)
   process_extra_flags();  
@@ -336,8 +336,8 @@ foreach $target (@undefined_targets){
   $value = to_bin($labels{$item[0]}, 8);
   $adr = $item[1]*1;
   
-	substr($rom[$adr], 20,2, substr($value, 0,2));
-	substr($rom[$adr], 26,6, substr($value, 2,6));
+  substr($rom[$adr], 20,2, substr($value, 0,2));
+  substr($rom[$adr], 26,6, substr($value, 2,6));
 }
 
 foreach $bf (@rom){
@@ -543,7 +543,7 @@ sub process_extra_flags {
       $error = "flags incompatible with jsr/tjsr operation: "
                                                       .$provisional_flags2;
       $num_errors++;                                                      
-    	$uinst->{error} = $error;
+      $uinst->{error} = $error;
     }
     else{
       substr($uinst->{field_0},3,3) = $flags2;
@@ -775,8 +775,8 @@ sub process_field2 {
 
 
 
-# return 	!=0 when uinst is finished except for flags, 
-# 				0 when field2 has to be processed
+# return   !=0 when uinst is finished except for flags, 
+#         0 when field2 has to be processed
 
 sub process_field1 {
   
@@ -786,42 +786,42 @@ sub process_field1 {
   $field =~ s/\s*;//g;
   $field =~ s/\s+/ /g;
   
-	# look for special format uinsts: jsr, tjsr, nop
-	if($field =~ /(jsr|tjsr)\s+([_\w]+)/){
-	  $opcode = $1;
-		$target = $2;		
-		# set flag 
-		$uinst->{flags} = $uinst->{flags}." #".$opcode." ";
-		
-		# check that target is defined, otherwise tag it for 2nd pass
-		$target_addr = $labels{$target};
+  # look for special format uinsts: jsr, tjsr, nop
+  if($field =~ /(jsr|tjsr)\s+([_\w]+)/){
+    $opcode = $1;
+    $target = $2;    
+    # set flag 
+    $uinst->{flags} = $uinst->{flags}." #".$opcode." ";
+    
+    # check that target is defined, otherwise tag it for 2nd pass
+    $target_addr = $labels{$target};
 
-    tag_label_use($target, $addr);		
-		
-		if($target_addr eq ''){
-		  push @undefined_targets, [$target, $addr];
-		  $code = $field1_ops{$opcode};
-		  $uinst->{field1} = $code;
-		}
-		else{
-		  # set up bitfield so we can fill the address in in 2nd pass
-		  $code = $field1_ops{$opcode};
-		  $a = to_bin($target_addr+0, 8);
-		  substr($code, 20,2, substr($a, 0,2));
-		  substr($code, 26,6, substr($a, 2,6));
-			$uinst->{field1} = $code;
-		}
-		return 1;
-	}
-	
-	if($field =~ /nop/){
-	  # TODO encode NOP as 1st field
-	  $uinst->{field1} = $field1_ops{'nop'};
-	  return 0;
-	}
+    tag_label_use($target, $addr);    
+    
+    if($target_addr eq ''){
+      push @undefined_targets, [$target, $addr];
+      $code = $field1_ops{$opcode};
+      $uinst->{field1} = $code;
+    }
+    else{
+      # set up bitfield so we can fill the address in in 2nd pass
+      $code = $field1_ops{$opcode};
+      $a = to_bin($target_addr+0, 8);
+      substr($code, 20,2, substr($a, 0,2));
+      substr($code, 26,6, substr($a, 2,6));
+      $uinst->{field1} = $code;
+    }
+    return 1;
+  }
+  
+  if($field =~ /nop/){
+    # TODO encode NOP as 1st field
+    $uinst->{field1} = $field1_ops{'nop'};
+    return 0;
+  }
 
-	# process regular field1 (register load): dst = src
-	
+  # process regular field1 (register load): dst = src
+  
   if($field =~ /$re_field1/){
     @parts = split /=/, $field;
     
@@ -835,10 +835,10 @@ sub process_field1 {
     
     if($d eq ''){
       # unrecognized source that somehow matches pattern (e.g. _pl0)
-    	$error = "invalid source in uinst field 1";
-    	$uinst->{field1} = $field1_ops{'nop'};
-    	$uinst->{error} = $error;
-    	$num_errors++;
+      $error = "invalid source in uinst field 1";
+      $uinst->{field1} = $field1_ops{'nop'};
+      $uinst->{error} = $error;
+      $num_errors++;
       $uinst->{src} = '?';
       return 1;
     }
@@ -849,11 +849,11 @@ sub process_field1 {
     return 0;
   }
   else{
-  	# field1 not recognized.
-  	$error = "uinst field 1 not recognized: '".$field."'";
-  	$uinst->{field1} = $field1_ops{'nop'};
-  	$uinst->{error} = $error;
-  	$num_errors++;
+    # field1 not recognized.
+    $error = "uinst field 1 not recognized: '".$field."'";
+    $uinst->{field1} = $field1_ops{'nop'};
+    $uinst->{error} = $error;
+    $num_errors++;
     return 1;
   }  
   
