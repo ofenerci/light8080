@@ -21,13 +21,16 @@
 ; Modified 2006/11/16 by Scott Moore to work on CPU8080 FPGA core
 ;
 ;***********************************************************************
-; Modified 2007/09/24 by Jose Ruiz for use in free8080 FPGA core
+; Modified 2007/09/24 by Jose Ruiz for use in light8080 FPGA core
 ;
 ; 1.- Changed formatting for compatibility to CP/M's ASM
 ; 2.- Commented out all Altair / MITS hardware related stuff
 ; 3.- Set origin at 0H
 ; 
 ; Modified again in 2008 to make it compatible with TASM assembler.
+;
+; Modified 2012/02/12 to add a few CY checks.
+; Flags go almost completely unchecked in this test.
 ;***********************************************************************
 
 ; DS pseudo-directive; reserve space in bytes, without initializing it
@@ -200,14 +203,20 @@ sbii:   sbi     0f1H    ;a=f0h-0f1h-carry(0)=ffh,c=1
         jz      anii    ;test "sbi"
         call    cpuer
 anii:   ani     055H    ;a=f0h<and>55h=50h,c=0,p=1,s=0,z=0
+        cc      cpuer
+        cz      cpuer
         cpi     050H
         jz      orii    ;test "ani"
         call    cpuer
 orii:   ori     03aH    ;a=50h<or>3ah=7ah,c=0,p=0,s=0,z=0
+        cc      cpuer
+        cz      cpuer
         cpi     07aH
         jz      xrii    ;test "ori"
         call    cpuer
 xrii:   xri     00fH    ;a=7ah<xor>0fh=75h,c=0,p=0,s=0,z=0
+        cc      cpuer
+        cz      cpuer
         cpi     075H
         jz      c010    ;test "xri"
         call    cpuer
@@ -438,7 +447,9 @@ movi:   mvi     a,077H
         mvi     e,07fH
         mvi     h,0f4H
         mvi     l,0bfH
+        stc
         ana     a
+        cc      cpuer 
         ana     c
         ana     d
         ana     e
@@ -454,7 +465,9 @@ movi:   mvi     a,077H
         mvi     e,008H
         mvi     h,010H
         mvi     l,020H
+        stc
         ora     b
+        cc      cpuer
         ora     c
         ora     d
         ora     e
@@ -466,7 +479,9 @@ movi:   mvi     a,077H
         mvi     a,0H
         mvi     h,08fH
         mvi     l,04fH
+        stc
         xra     b
+        cc      cpuer
         xra     c
         xra     d
         xra     e
@@ -542,13 +557,19 @@ movi:   mvi     a,077H
         sbb     m
         cpi     0cdH
         cnz     cpuer   ;test "sbb" m
+        stc
         ana     m
+        cc      cpuer
         cnz     cpuer   ;test "ana" m
         mvi     a,025H
+        stc
         ora     m
+        cc      cpuer
         cpi     37H
         cnz     cpuer   ;test "ora" m
+        stc
         xra     m
+        cc      cpuer
         cpi     005H
         cnz     cpuer   ;test "xra" m
         mvi     m,055H

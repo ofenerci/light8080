@@ -246,7 +246,7 @@ informally described below:
     t1\textbar rst\textbar daa\textbar cpc\textbar sec\textbar psw
     \textless flag list \textgreater := \textless flag \textgreater [, \textless flag \textgreater ...]
     \textless flag \textgreater := \#decode\textbar\#di\textbar\#ei\textbar\#io\textbar\#auxcy\textbar\#clrt1\textbar\#halt\textbar\#end\textbar\#ret\textbar\#rd\textbar\#wr\textbar\#setacy 
-          \#ld\_al\textbar\#ld\_addr\textbar\#fp\_c\textbar\#fp\_r\textbar\#fp\_rc \footnote{There are some restrictions on the flags that can be used together} \\
+          \#ld\_al\textbar\#ld\_addr\textbar\#fp\_c\textbar\#fp\_r\textbar\#fp\_rc\textbar\#clr\_acy \footnote{There are some restrictions on the flags that can be used together} \\
 \end{alltt}
 
 
@@ -347,7 +347,7 @@ POS & VHDL NAME & PURPOSE \\ \hline
 21 & mux\_in & T1/T2 source mux control (0 for DI, 1 for reg bank) \\ \hline
 20..19 & rb\_addr\_sel & Register bank address source control (note 2) \\ \hline
 18..15 & ra\_field & Register bank address (used both for write and read) \\ \hline
-14 & (unused) & Reserved \\ \hline
+14 & clr\_acy & Clear CY and AC -- see explaination below (pipelined signal) \\ \hline
 13..10 & (unused) & Reserved for write register bank address, unused yet \\ \hline
 11..10 & uc\_jmp\_addr(7..6) & JSR/TJSR jump address, higher 2 bits \\ \hline
 9..8 & flag\_pattern & PSW flag update control (note 3) (pipelined signal) \\ \hline
@@ -441,6 +441,10 @@ the microcode source:
   \item \#ld\_addr : Load address register (H byte = register bank output as read
   by operation 1, L byte = AL).
   Activate vma signal for 1st cycle.  
+  \item \#clr\_acy : Clear PSW flags AC and CY, except for AND instructions 
+  (ALU operation = 000100), where AC is set.
+  Meant to be used with flag \#fp\_rc for the logic instructions (AND, OR, XOR).
+  See \ref{compatibility} for a note about compatibility to the original 8080.
   \end{itemize}  
 
 \item PSW update flags: use only one of these
@@ -591,6 +595,22 @@ XRA r & 4 & 6 & & & & \\ \hline
 
 \end{tabular}
 
+\clearpage
+
+\subsection{Binary compatibility to original 8080}
+\label{compatibility}
+
+Flag AC (auxiliary carry) does not work exactly as in the original 8080. In the 
+original 8080, ANI and ANA don't clear AC but set it to the OR'ing of
+bits 3 of the ALU operands.
+
+In this core, these two instructions instead set the AC flag to 1. In this, the
+core is compatible to the 8085 ad not to the 8080.
+
+That is the only difference to the original 8080 that I am aware of. 
+Unfortunately, the only test bench that I have available right now is not 
+exhaustive enough to pick that kind of detail. Until I develop a stronger test 
+bench, full compatibility to the 8080 can't be guaranteed.
  
 \end{document}
 

@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// LIGHT8080 CORE MICROCODE (V.1 November 1st 2007)
+// LIGHT8080 CORE MICROCODE (V.2 February 12th 2012)
 ////////////////////////////////////////////////////////////////////////////////
 // NOTE: Except for bug fixing, there's no need to tinker with the microcode. 
 // Once the microcode table has been generated, this file is is not needed to 
@@ -61,6 +61,10 @@
 // #halt :    Jump to microcode address 0x07 without saving return value.
 //
 ////////////////////////////////////////////////////////////////////////////////
+// V.1 November 1st 2007    -- Original version
+// V.2 February 12th 2012   -- Fixed CY/AC clear bug with clr_acy flag
+////////////////////////////////////////////////////////////////////////////////
+
 
 // RESET ucode: from 0 to 2, but uinst at address 0 is never executed
 __reset 
@@ -233,20 +237,20 @@ __code  "11100110"
 __asm   ANI #imm
 
 JSR read_imm
-T2 = _a       ; _a = AND      ; #end, #fp_rc
+T2 = _a       ; _a = AND      ; #end, #fp_rc, #clr_acy
 
 __code  "11101110"
 __asm   XRI #imm
 
 JSR read_imm
-T2 = _a       ; _a = XRL      ; #end, #fp_rc
+T2 = _a       ; _a = XRL      ; #end, #fp_rc, #clr_acy
 
 
 __code  "11110110"
 __asm   ORI #imm
 
 JSR read_imm
-T2 = _a       ; _a = ORL      ; #end, #fp_rc
+T2 = _a       ; _a = ORL      ; #end, #fp_rc, #clr_acy
 
 
 __code  "11111110"
@@ -285,19 +289,19 @@ __code  "10100sss"
 __asm   ANA {s}
 
 T1 = {s}      ; NOP   
-T2 = _a       ; _a = AND      ; #end, #fp_rc
+T2 = _a       ; _a = AND      ; #end, #fp_rc, #clr_acy
 
 __code  "10101sss"
 __asm   XRA {s}
 
 T1 = {s}      ; NOP   
-T2 = _a       ; _a = XRL      ; #end, #fp_rc
+T2 = _a       ; _a = XRL      ; #end, #fp_rc, #clr_acy
 
 __code  "10110sss"
 __asm   ORA {s}
 
 T1 = {s}      ; NOP   
-T2 = _a       ; _a = ORL      ; #end, #fp_rc
+T2 = _a       ; _a = ORL      ; #end, #fp_rc, #clr_acy
 
 __code  "10111sss"
 __asm   CMP {s}
@@ -334,19 +338,19 @@ __code  "10100110"
 __asm   ANA M
 
 JSR read_m
-T2 = _a       ; _a = AND      ; #end, #fp_rc
+T2 = _a       ; _a = AND      ; #end, #fp_rc, #clr_acy
 
 __code  "10101110"
 __asm   XRA M
 
 JSR read_m
-T2 = _a       ; _a = XRL      ; #end, #fp_rc
+T2 = _a       ; _a = XRL      ; #end, #fp_rc, #clr_acy
 
 __code  "10110110"
 __asm   ORA M
 
 JSR read_m
-T2 = _a       ; _a = ORL      ; #end, #fp_rc
+T2 = _a       ; _a = ORL      ; #end, #fp_rc, #clr_acy
 
 
 __code  "10111110"

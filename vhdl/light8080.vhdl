@@ -1,6 +1,7 @@
 --##############################################################################
 -- light8080 : Intel 8080 binary compatible core
 --##############################################################################
+-- v1.3    (12 FEB 2012) Fix: General solution to AND, OR, XOR clearing CY,ACY.
 -- v1.2    (08 jul 2010) Fix: XOR operations were not clearing CY,ACY.
 -- v1.1    (20 sep 2008) Microcode bug in INR fixed.
 -- v1.0    (05 nov 2007) First release. Jose A. Ruiz.
@@ -59,7 +60,7 @@ end light8080;
 -- works as the master memory and io synchronous enable. More specifically:
 --
 --    * All memory/io control signals (io,rd,wr) are valid only when vma is 
---      high. They never activate when vms is inactive. 
+--      high. They never activate when vma is inactive. 
 --    * Signals data_out and address are only valid when vma='1'. The high 
 --      address byte is 0x00 for all io accesses.
 --    * Signal data_in should be valid by the end of the cycle after vma='1', 
@@ -233,11 +234,11 @@ signal rom : t_rom := (
 "00001000000000000000110000011111", -- 03e
 "00000100011000111000001101001111", -- 03f
 "00001000000000000000110000011111", -- 040
-"00000100011000111000001101000100", -- 041
+"00000100011000111100001101000100", -- 041
 "00001000000000000000110000011111", -- 042
-"00000100011000111000001101000101", -- 043
+"00000100011000111100001101000101", -- 043
 "00001000000000000000110000011111", -- 044
-"00000100011000111000001101000110", -- 045
+"00000100011000111100001101000110", -- 045
 "00001000000000000000110000011111", -- 046
 "00000100011000111000001110001110", -- 047
 "00000000101010000000000000000000", -- 048
@@ -249,11 +250,11 @@ signal rom : t_rom := (
 "00000000101010000000000000000000", -- 04e
 "00000100011000111000001101001111", -- 04f
 "00000000101010000000000000000000", -- 050
-"00000100011000111000001101000100", -- 051
+"00000100011000111100001101000100", -- 051
 "00000000101010000000000000000000", -- 052
-"00000100011000111000001101000101", -- 053
+"00000100011000111100001101000101", -- 053
 "00000000101010000000000000000000", -- 054
-"00000100011000111000001101000110", -- 055
+"00000100011000111100001101000110", -- 055
 "00000000101010000000000000000000", -- 056
 "00000100011000111000001110001110", -- 057
 "00001000000000000000110000011001", -- 058
@@ -265,11 +266,11 @@ signal rom : t_rom := (
 "00001000000000000000110000011001", -- 05e
 "00000100011000111000001101001111", -- 05f
 "00001000000000000000110000011001", -- 060
-"00000100011000111000001101000100", -- 061
+"00000100011000111100001101000100", -- 061
 "00001000000000000000110000011001", -- 062
-"00000100011000111000001101000101", -- 063
+"00000100011000111100001101000101", -- 063
 "00001000000000000000110000011001", -- 064
-"00000100011000111000001101000110", -- 065
+"00000100011000111100001101000110", -- 065
 "00001000000000000000110000011001", -- 066
 "00000100011000111000001110001110", -- 067
 "10111100101100000000001001001101", -- 068
@@ -709,7 +710,10 @@ signal rbank_rd_addr: std_logic_vector(3 downto 0); -- rbank rd addr
 signal rbank_wr_addr: std_logic_vector(3 downto 0); -- rbank wr addr
 signal DO :           std_logic_vector(7 downto 0); -- data output reg
     
--- Register bank as an array of 16 bytes (asynch. LUT ram)
+-- Register bank as an array of 16 bytes.
+-- This will be implemented as asynchronous LUT RAM in those devices where this
+-- feature is available (Xilinx) and as multiplexed registers where it isn't
+-- (Altera).
 type t_reg_bank is array(0 to 15) of std_logic_vector(7 downto 0);
 -- Register bank : BC, DE, HL, AF, [PC, XY, ZW, SP]
 signal rbank :        t_reg_bank;
@@ -728,7 +732,9 @@ signal do_cy_op_d :   std_logic; -- do_cy_op, pipelined
 signal do_cpc :       std_logic; -- ALU operation is CPC
 signal do_cpc_d :     std_logic; -- do_cpc, pipelined
 signal do_daa :       std_logic; -- ALU operation is DAA
-signal do_xor :       std_logic; -- ALU operation is some XOR (clears CY)
+signal clear_cy :     std_logic; -- Instruction unconditionally clears CY
+signal clear_ac :     std_logic; -- Instruction unconditionally clears AC
+signal set_ac :       std_logic; -- Instruction unconditionally sets AC
 signal flag_ac :      std_logic; -- new computed half carry flag
 -- flag_aux_cy: new computed half carry flag (used in 16-bit ops)
 signal flag_aux_cy :  std_logic;
@@ -1124,7 +1130,21 @@ use_aux_cy <= ucode_field2(19);
 do_cpc <= ucode_field2(23);
 do_cy_op <= ucode_field2(24);
 do_daa <= '1' when ucode_field2(5 downto 2) = "1010" else '0';
-do_xor <= '1' when ucode_field2(5 downto 0) = "000101" else '0';
+
+-- ucode_field2(14) will be set for those instructions that modify CY and AC
+-- without following the standard rules -- AND, OR and XOR instructions.
+
+-- Some instructions will unconditionally clear CY (AND, OR, XOR)
+clear_cy <= ucode_field2(14);
+
+-- Some instructions will unconditionally clear AC (OR, XOR)...
+clear_ac <= '1' when ucode_field2(14) = '1' and 
+                   ucode_field2(5 downto 0) /= "000100" 
+          else '0';
+-- ...and some others unconditionally SET AC (AND)
+set_ac <= '1' when ucode_field2(14) = '1' and 
+                   ucode_field2(5 downto 0) = "000100" 
+          else '0';   
   
 aux_cy_in <= reg_aux_cy when set_aux_cy = '0' else '1';
 
@@ -1230,14 +1250,15 @@ flag_s <= alu_output(7);
 flag_p <= not(alu_output(7) xor alu_output(6) xor alu_output(5) xor alu_output(4) xor
          alu_output(3) xor alu_output(2) xor alu_output(1) xor alu_output(0));
 flag_z <= '1' when alu_output=X"00" else '0';
--- FIXED 08/JUL/2010: XOR was  not clearing AC as it should
---flag_ac <= (arith_op1(4) xor arith_op2_sgn(4) xor alu_output(4));
-flag_ac <= (arith_op1(4) xor arith_op2_sgn(4) xor alu_output(4)) and not do_xor;
+-- AC is either the CY from bit 4 OR 0 if the instruction clears it implicitly
+flag_ac <= '1' when set_ac = '1' else
+           '0' when clear_ac = '1' else
+            (arith_op1(4) xor arith_op2_sgn(4) xor alu_output(4));
 
--- FIXED 08/JUL/2010: XOR was not clearing CY as it should
---flag_cy_1 <= cy_arith when use_logic = '1' else cy_shifter;
-flag_cy_1 <=  '0'       when do_xor='1' else
-              cy_arith  when use_logic = '1' and do_xor='0' else
+-- CY comes from the adder or the shifter, or is 0 if the instruction 
+-- implicitly clears it.
+flag_cy_1 <=  '0'       when clear_cy = '1' else
+              cy_arith  when use_logic = '1' and clear_cy = '0' else
               cy_shifter;
 flag_cy_2 <= not flag_reg(0) when do_cpc='0' else '1'; -- cmc, stc
 flag_cy <= flag_cy_1 when do_cy_op='0' else flag_cy_2;

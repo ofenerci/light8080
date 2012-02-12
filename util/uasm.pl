@@ -41,7 +41,7 @@
 #            t1|rst|daa|cpc|sec|psw
 #<flag list> := <flag> [, <flag> ...] 
 #<flag> := #decode|#di|#ei|#io|#auxcy|#clrt1|#halt|#end|#ret|#rd|#wr|#setacy 
-#          #ld_al|#ld_addr|#fp_c|#fp_r|#fp_rc  (*2)
+#          #ld_al|#ld_addr|#fp_c|#fp_r|#fp_rc|#clr_cy_ac  (*2)
 #
 #  *1 Labels appear alone by themselves in a line
 #  *2 There are some restrictions on the flags that can be used together
@@ -93,6 +93,7 @@
 # #ld_addr : Load address register (H byte = register bank output as read by 
 #            operation 1, L byte = AL). 
 #            Activate vma signal for 1st cycle.
+# #clr_acy : Instruction clears CY and AC flags. Use with #fp_rc.
 # --- PSW update flags: use only one of these
 # #fp_r :    This instruction updates all PSW flags except for C.
 # #fp_c :    This instruction updates only the C flag in the PSW.
@@ -566,7 +567,9 @@ sub process_extra_flags {
   if($uinst->{flags} =~ /#fp_rc/){
     substr($uinst->{field1},22,2) = '11';
   }
-
+  if($uinst->{flags} =~ /#clr_acy/){
+    substr($uinst->{field1},17,1) = '1';
+  }
   
 }
 
@@ -660,6 +663,9 @@ sub process_flags {
     }
     if($flag_str =~ /#fp_rc/){
       $uinst->{flags} = $uinst->{flags}." #fp_rc";
+    }
+    if($flag_str =~ /#clr_acy/){
+      $uinst->{flags} = $uinst->{flags}." #clr_acy";
     }
 
     if($error ne ''){
