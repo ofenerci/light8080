@@ -46,3 +46,20 @@ asm\tb1.asm                             Test bench 1 program assembler source
 asm\hexconv.pl                          Intel HEX to VHDL converter
 asm\tasmtb.bat                          BATCH script to build the test benches
 asm\readme.txt                          How to assemble the sources
+
+verilog\rtl\                                contains the Verilog files of the light8080 CPU and SOC
+verilog\bench\                          Verilog light8080 SOC testbench 
+verilog\sim\icarus                      files used for Verilog simulation using Icaru Verilog 
+verilog\syn\altera_c2                   Altera Quartus project file ucing Cyclone II FPGA 
+verilog\syn\xilinx_s3                   Xilinx ISE project file ucing Spartan 3 FPGA 
+
+c\                                      Hello World Small-C light8080 SOC sample 
+
+tools\c80\                              C80 compiler and AS80 assembler tools used to compile 
+                                        the C example program. The c80.exe executable was compiled 
+                                        using tcc (Tiny C Compiler).
+
+tools\ihex2vlog\                        Intel HEX to Verilog tool used to generate the Verilog 
+                                        program & RAM memory file used by the verilog SOC. 
+                                        The ihex2vlog.exe executable was compiled using tcc 
+                                        (Tiny C Compiler).
