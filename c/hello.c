@@ -8,6 +8,8 @@
 //	Description:
 //		This file contains a simple program written in Small-C that sends a string to 
 //		the UART and then switches to echo received bytes. 
+//		This example also include a simple interrupt example which will work with the 
+//		verilog testbench. the testbench 
 //
 //	Revision History:
 //
@@ -15,6 +17,10 @@
 //		<comment>
 //---------------------------------------------------------------------------------------
 
+// define interrupt vectors 
+// note that this file must be edited to enable interrupt used 
+#include intr_vec.h 
+// insert c80 assmbly library to the output file 
 #include ..\tools\c80\c80.lib
 
 // UART IO registers 
@@ -23,10 +29,12 @@ port (129) UBAUDL;		// low byte of baud rate register
 port (130) UBAUDH;		// low byte of baud rate register 
 port (131) USTAT;		// uart status register 
 // digital IO ports registers 
-port (132) P1REG;     	// output port1 - used as first attenuator control 
-port (133) P2REG;		// output port2 - used as low digit LCD 
-port (134) P3REG;		// output port3 - used as high digit LCD 
-port (135) P4REG;		// output port4 
+port (132) P1DATA;     	// port 1 data register 
+port (133) P1DIR;		// port 1 direction register control 
+port (134) P2DATA;		// port 2 data register 
+port (135) P2DIR;		// port 2 direction register control 
+// interrupt controller register 
+port (136) INTRENA;		// interrupts enable register 
 // simulation end register 
 // writing any value to this port will end the verilog simulation when using tb_l80soc 
 // test bench. 
@@ -113,20 +121,46 @@ int q;
 		sendbyte('0'+q);
 }
 
+// external interrupt 0 service routine 
+int0_isr()
+{
+	printstr("Interrupt 0 was asserted."); nl();
+}
+
 // program main routine 
 main()
 {
 	// configure UART baud rate - set to 9600 for 30MHz clock 
 	// BAUD = round(<clock>/<baud rate>/16) = round(30e6/9600/16) = 195 
-	UBAUDL = 195;
+//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTI
+//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTI
+//	UBAUDL = 195;
+	UBAUDL = 1;
+//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTI
+//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTI
 	UBAUDH = 0;
 
+	// configure both ports to output and digital outputs as zeros 
+	P1DATA = 0x00;
+	P1DIR = 0xff;
+	P2DATA = 0x00;
+	P2DIR = 0xff;
+	// enable interrupt 0 only 
+	INTRENA = 0x01; 
+	// enable CPU interrupt 
+#asm 
+	ei 
+#endasm
+	
 	// print message 
 	printstr("Hello World!!!"); nl();
 	printstr("Dec value: "); printdec(tstary[1]); nl();
 	printstr("Hex value: 0x"); printhex(tstary[0]); nl();
+
+	// assert bit 0 of port 1 to test external interrupt 0 
+	P1DATA = 0x01;
+		
 	printstr("Echoing received bytes: "); nl();
-	
 	// loop forever 
 	while (1) {
 		// check if a new byte was received 
@@ -135,7 +169,6 @@ main()
 			sendbyte(rxbyte); 
 	}
 }
-
 //---------------------------------------------------------------------------------------
 //						Th.. Th.. Th.. Thats all folks !!!
 //---------------------------------------------------------------------------------------

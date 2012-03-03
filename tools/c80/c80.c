@@ -2445,7 +2445,7 @@ char *sname;
 
 /* Return from subroutine */
 zret()
-{	ol("RET");
+{	ol("ret");
 }
 /* Perform subroutine call to value on top of stack */
 callstk()

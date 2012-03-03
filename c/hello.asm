@@ -17,12 +17,107 @@
 ;//	Description:
 ;//		This file contains a simple program written in Small-C that sends a string to 
 ;//		the UART and then switches to echo received bytes. 
+;//		This example also include a simple interrupt example which will work with the 
+;//		verilog testbench. the testbench 
 ;//
 ;//	Revision History:
 ;//
 ;//	Rev <revnumber>			<Date>			<owner> 
 ;//		<comment>
 ;//---------------------------------------------------------------------------------------
+;// define interrupt vectors 
+;// note that this file must be edited to enable interrupt used 
+;#include intr_vec.h 
+;//---------------------------------------------------------------------------------------
+;//	Project:			light8080 SOC		WiCores Solutions 
+;//
+;//	File name:			intr_vec.h 			(March 03, 2012)
+;//
+;//	Writer:				Moti Litochevski 
+;//
+;//	Description:
+;//		This file contains a simple example of calling interrupt service routine. this 
+;//		file defines the interrupt vector for external interrupt 0 located at address 
+;//		0x0008. the interrupts vectors addresses are set in the verilog interrupt 
+;//		controller "intr_ctrl.v" file. 
+;//		Code is generated for all 4 supported external interrupts but non used interrupt 
+;//		are not called. 
+;//		On execution of an interrupt the CPU will automatically clear the interrupt 
+;//		enable flag set by the EI instruction. the interrupt vectors in this example 
+;//		enable the interrupts again after interrupt service routine execution. to enable 
+;//		nested interrupts just move the EI instruction to the code executed before the 
+;//		call instruction to the service routine (see comments below). 
+;//		Note that this code is not optimized in any way. this is just an example to 
+;//		verify the interrupt mechanism of the light8080 CPU and show a simple example. 
+;//
+;//	Revision History:
+;//
+;//	Rev <revnumber>			<Date>			<owner> 
+;//		<comment>
+;//---------------------------------------------------------------------------------------
+;// to support interrupt enable the respective interrupt vector is defined here at the 
+;// beginning of the output assembly file. only the interrupt vector for used interrupts
+;// should call a valid interrupt service routine name defined in the C source file. the 
+;// C function name should be prefixed by "__". 
+;#asm
+;Preserve space for interrupt routines 
+;interrupt 0 vector 
+	org #0008
+	push af
+	push bc
+	push de
+	push hl 
+;	ei					; to enable nested interrupts uncomment this instruction 
+	call __int0_isr 
+	pop hl 
+	pop de 
+	pop bc
+	pop af
+	ei 					; interrupt are not enabled during the execution os the isr 
+	ret 
+;interrupt 1 vector 
+	org #0018
+	push af
+	push bc
+	push de
+	push hl 
+;	call __int1_isr		; interrupt not used 
+	pop hl 
+	pop de 
+	pop bc
+	pop af
+	ei 
+	ret 
+;interrupt 2 vector 
+	org #0028
+	push af
+	push bc
+	push de
+	push hl 
+;	call __int2_isr		; interrupt not used 
+	pop hl 
+	pop de 
+	pop bc
+	pop af
+	ei 
+	ret 
+;interrupt 3 vector 
+	org #0038
+	push af
+	push bc
+	push de
+	push hl 
+;	call __int3_isr		; interrupt not used 
+	pop hl 
+	pop de 
+	pop bc
+	pop af
+	ei 
+	ret 
+;//---------------------------------------------------------------------------------------
+;//						Th.. Th.. Th.. Thats all folks !!!
+;//---------------------------------------------------------------------------------------
+;// insert c80 assmbly library to the output file 
 ;#include ..\tools\c80\c80.lib
 ;#asm
 ;
@@ -340,10 +435,12 @@ cccmpbcde:
 ;port (130) UBAUDH;		// low byte of baud rate register 
 ;port (131) USTAT;		// uart status register 
 ;// digital IO ports registers 
-;port (132) P1REG;     	// output port1 - used as first attenuator control 
-;port (133) P2REG;		// output port2 - used as low digit LCD 
-;port (134) P3REG;		// output port3 - used as high digit LCD 
-;port (135) P4REG;		// output port4 
+;port (132) P1DATA;     	// port 1 data register 
+;port (133) P1DIR;		// port 1 direction register control 
+;port (134) P2DATA;		// port 2 data register 
+;port (135) P2DIR;		// port 2 direction register control 
+;// interrupt controller register 
+;port (136) INTRENA;		// interrupts enable register 
 ;// simulation end register 
 ;// writing any value to this port will end the verilog simulation when using tb_l80soc 
 ;// test bench. 
@@ -663,31 +760,79 @@ cc12:
 ;}
 	pop bc
 	ret
+;// external interrupt 0 service routine 
+;int0_isr()
+__int0_isr:
+;{
+;	printstr("Interrupt 0 was asserted."); nl();
+	ld hl,cc1+0
+	push hl
+	call __printstr
+	pop bc
+	call __nl
+;}
+	ret
 ;// program main routine 
 ;main()
 __main:
 ;{
 ;	// configure UART baud rate - set to 9600 for 30MHz clock 
 ;	// BAUD = round(<clock>/<baud rate>/16) = round(30e6/9600/16) = 195 
-;	UBAUDL = 195;
-	ld hl,195
+;//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTI
+;//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTI
+;//	UBAUDL = 195;
+;	UBAUDL = 1;
+	ld hl,1
 	ld a,l
 	out (129),a
 
+;//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTI
+;//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTI
 ;	UBAUDH = 0;
 	ld hl,0
 	ld a,l
 	out (130),a
 
+;	// configure both ports to output and digital outputs as zeros 
+;	P1DATA = 0x00;
+	ld hl,0
+	ld a,l
+	out (132),a
+
+;	P1DIR = 0xff;
+	ld hl,255
+	ld a,l
+	out (133),a
+
+;	P2DATA = 0x00;
+	ld hl,0
+	ld a,l
+	out (134),a
+
+;	P2DIR = 0xff;
+	ld hl,255
+	ld a,l
+	out (135),a
+
+;	// enable interrupt 0 only 
+;	INTRENA = 0x01; 
+	ld hl,1
+	ld a,l
+	out (136),a
+
+;	// enable CPU interrupt 
+;#asm 
+	ei 
+;	
 ;	// print message 
 ;	printstr("Hello World!!!"); nl();
-	ld hl,cc1+0
+	ld hl,cc1+26
 	push hl
 	call __printstr
 	pop bc
 	call __nl
 ;	printstr("Dec value: "); printdec(tstary[1]); nl();
-	ld hl,cc1+15
+	ld hl,cc1+41
 	push hl
 	call __printstr
 	pop bc
@@ -703,7 +848,7 @@ __main:
 	pop bc
 	call __nl
 ;	printstr("Hex value: 0x"); printhex(tstary[0]); nl();
-	ld hl,cc1+27
+	ld hl,cc1+53
 	push hl
 	call __printstr
 	pop bc
@@ -718,13 +863,19 @@ __main:
 	call __printhex
 	pop bc
 	call __nl
+;	// assert bit 0 of port 1 to test external interrupt 0 
+;	P1DATA = 0x01;
+	ld hl,1
+	ld a,l
+	out (132),a
+
+;		
 ;	printstr("Echoing received bytes: "); nl();
-	ld hl,cc1+41
+	ld hl,cc1+67
 	push hl
 	call __printstr
 	pop bc
 	call __nl
-;	
 ;	// loop forever 
 ;	while (1) {
 cc13:
@@ -755,13 +906,16 @@ cc14:
 ;//						Th.. Th.. Th.. Thats all folks !!!
 ;//---------------------------------------------------------------------------------------
 cc1:
-	db 72,101,108,108,111,32,87,111,114,108
-	db 100,33,33,33,0,68,101,99,32,118
-	db 97,108,117,101,58,32,0,72,101,120
-	db 32,118,97,108,117,101,58,32,48,120
-	db 0,69,99,104,111,105,110,103,32,114
-	db 101,99,101,105,118,101,100,32,98,121
-	db 116,101,115,58,32,0
+	db 73,110,116,101,114,114,117,112,116,32
+	db 48,32,119,97,115,32,97,115,115,101
+	db 114,116,101,100,46,0,72,101,108,108
+	db 111,32,87,111,114,108,100,33,33,33
+	db 0,68,101,99,32,118,97,108,117,101
+	db 58,32,0,72,101,120,32,118,97,108
+	db 117,101,58,32,48,120,0,69,99,104
+	db 111,105,110,103,32,114,101,99,101,105
+	db 118,101,100,32,98,121,116,101,115,58
+	db 32,0
 __rxbyte:
 	ds 1
 __tstary:

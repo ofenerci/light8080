@@ -35,7 +35,6 @@ module test;
 // the following define selects between CPU instruction trace and uart transmitted bytes 
 //`define CPU_TRACE		1
 
-
 //---------------------------------------------------------------------------------------
 // internal signals 
 reg clock;				// global clock 
@@ -44,6 +43,8 @@ reg reset;				// global reset
 // UUT interfaces 
 wire rxd, txd;
 wire [7:0] p1dio, p2dio;
+wire [3:0] extint;
+reg sp1dio0;
 
 //---------------------------------------------------------------------------------------
 // test bench implementation 
@@ -93,13 +94,32 @@ l80soc dut
 	.txd(txd), 
 	.rxd(rxd),
 	.p1dio(p1dio), 
-	.p2dio(p2dio)
+	.p2dio(p2dio),
+	.extint(extint) 
 );
 
 //------------------------------------------------------------------
 // uart receive is not used in this test becnch 
 assign rxd = 1'b1;
 
+// external interrupt 0 is connected to the p1dio[0] rising edge 
+assign extint[3:1] = 3'b0;
+assign extint[0] = ((sp1dio0 == 1'b0) && (p1dio[0] == 1'b1)) ? 1'b1 : 1'b0;
+
+// p1dio[0] rising edge detection 
+always @ (posedge reset or posedge clock)
+begin  
+	if (reset) 
+		sp1dio0 <= 1'b0;
+	else if (p1dio[0] == 1'b1)
+		sp1dio0 <= 1'b1;
+	else 
+		sp1dio0 <= 1'b0;
+end 
+
+//------------------------------------------------------------------
+// test bench output log selection - either simple CPU trace or UART 
+// transmit port log 
 `ifdef CPU_TRACE 
 // display executed instructions 
 reg [15:0] saddr;

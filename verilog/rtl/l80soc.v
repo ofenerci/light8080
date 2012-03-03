@@ -32,7 +32,8 @@ module l80soc
 (
 	clock, reset,
 	txd, rxd,
-	p1dio, p2dio
+	p1dio, p2dio, 
+	extint 
 );
 //---------------------------------------------------------------------------------------
 // module interfaces 
@@ -45,6 +46,8 @@ input			rxd;		// serial data input
 // digital IO ports 
 inout	[7:0]	p1dio;		// port 1 digital IO 
 inout	[7:0]	p2dio;		// port 2 digital IO 
+// external interrupt sources 
+input	[3:0]	extint;		// external interrupt sources 
 
 //---------------------------------------------------------------------------------------
 // io space registers addresses 
@@ -58,6 +61,8 @@ inout	[7:0]	p2dio;		// port 2 digital IO
 `define P1_DIR_REG			8'h85		// port 1 direction register 
 `define P2_DATA_REG			8'h86		// port 2 data register 
 `define P2_DIR_REG			8'h87		// port 2 direction register 
+// interrupt controller register 
+`define INTR_EN_REG			8'h88		// interrupts enable register 
 
 //---------------------------------------------------------------------------------------
 // internal declarations 
@@ -65,14 +70,14 @@ inout	[7:0]	p2dio;		// port 2 digital IO
 
 // internals 
 wire [15:0] cpu_addr;
-wire [7:0] cpu_din, cpu_dout, ram_dout;
-wire cpu_io, cpu_rd, cpu_wr;
-wire [7:0] txData;
-wire txValid, txBusy, rxValid, lcd_clk;
-wire [7:0] rxData;
+wire [7:0] cpu_din, cpu_dout, ram_dout, intr_dout;
+wire cpu_io, cpu_rd, cpu_wr, cpu_inta, cpu_inte, cpu_intr; 
+wire [7:0] txData, rxData;
+wire txValid, txBusy, rxValid;
 reg [15:0] uartbaud;
 reg rxfull, scpu_io;
 reg [7:0] p1reg, p1dir, p2reg, p2dir, io_dout;
+reg [3:0] intr_ena;
 
 //---------------------------------------------------------------------------------------
 // module implementation 
@@ -89,13 +94,13 @@ light8080 cpu
 	.fetch(/* nu */), 
 	.data_in(cpu_din), 
 	.data_out(cpu_dout), 
-	.inta(/* nu */), 
-	.inte(/* nu */), 
+	.inta(cpu_inta), 
+	.inte(cpu_inte), 
 	.halt(/* nu */), 
-	.intr(1'b0) 
+	.intr(cpu_intr) 
 );
 // cpu data input selection 
-assign cpu_din = scpu_io ? io_dout : ram_dout;
+assign cpu_din = (cpu_inta) ? intr_dout : (scpu_io) ? io_dout : ram_dout;
 
 // program and data Xilinx RAM memory 
 ram_image ram 
@@ -118,6 +123,7 @@ begin
 		p1dir <= 8'b0;
 		p2reg <= 8'b0;
 		p2dir <= 8'b0;
+		intr_ena <= 4'b0;
 	end 
 	else 
 	begin 
@@ -130,6 +136,7 @@ begin
 			if (cpu_addr[7:0] == `P1_DIR_REG)	p1dir <= cpu_dout;
 			if (cpu_addr[7:0] == `P2_DATA_REG)	p2reg <= cpu_dout;
 			if (cpu_addr[7:0] == `P2_DIR_REG)	p2dir <= cpu_dout;
+			if (cpu_addr[7:0] == `INTR_EN_REG)	intr_ena <= cpu_dout[3:0];
 		end 
 		
 		// receiver full flag 
@@ -165,6 +172,20 @@ begin
 		scpu_io <= cpu_io;
 	end 
 end 
+
+// interrupt controller 
+intr_ctrl intrc 
+(
+	.clock(clock), 
+	.reset(reset),
+	.ext_intr(extint), 
+	.cpu_intr(cpu_intr), 
+	.cpu_inte(cpu_inte), 
+	.cpu_inta(cpu_inta), 
+	.cpu_rd(cpu_rd), 
+	.cpu_inst(intr_dout), 
+	.intr_ena(intr_ena) 
+);
 
 // uart module mapped to the io space 
 uart uart 
