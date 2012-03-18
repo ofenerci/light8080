@@ -132,12 +132,8 @@ main()
 {
 	// configure UART baud rate - set to 9600 for 30MHz clock 
 	// BAUD = round(<clock>/<baud rate>/16) = round(30e6/9600/16) = 195 
-//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTI
-//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTI
-//	UBAUDL = 195;
-	UBAUDL = 1;
-//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTI
-//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTI
+	// Note: Usage of a minimum divider value of 1 will accelerate the RTL simulation. 
+	UBAUDL = 195;
 	UBAUDH = 0;
 
 	// configure both ports to output and digital outputs as zeros 
@@ -151,7 +147,7 @@ main()
 #asm 
 	ei 
 #endasm
-	
+
 	// print message 
 	printstr("Hello World!!!"); nl();
 	printstr("Dec value: "); printdec(tstary[1]); nl();

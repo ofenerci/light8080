@@ -356,7 +356,7 @@ int j,dptr,idx;
 			outname(cptr);col();nl();
 			// calculate number of bytes 
 			j = ((cptr[offset]&255) + ((cptr[offset+1]&255)<<8));
-			if ((cptr[type]==cint) | (cptr[ident]==pointer))
+			if ((cptr[type]==cint) | (cptr[ident]==pointer)) 
 				j=j+j;	// 2 bytes for integer values 
 			// check if the global has an init value 
 			dptr = ((cptr[initptr]&255) + ((cptr[initptr+1]&255)<<8));
@@ -675,8 +675,8 @@ char sname[namesize];
 						
 					// save the values according to variable type 
 					if (typ==cint) {
-						inittbq[inittbptr++] = (char)((num[0]>>16)&255);
 						inittbq[inittbptr++] = (char)(num[0]&255);
+						inittbq[inittbptr++] = (char)((num[0]>>8)&255);
 					}
 					else 
 						inittbq[inittbptr++] = (char)(num[0]&255);
@@ -685,7 +685,7 @@ char sname[namesize];
 					
 					// init to end of array is more than one 
 					while (idx++ < k) {
-						// fill the reset of the init list with zeros 
+						// fill the rest of the init list with zeros 
 						if (typ==cint) {
 							inittbq[inittbptr++] = 0;
 							inittbq[inittbptr++] = 0;
@@ -2406,7 +2406,7 @@ indirect(typeobj)
 }
 /* Swap the primary and secondary registers */
 swap()
-{	ol("xchg");
+{	ol("ex de,hl");
 }
 /* Print partial instruction to get an immediate value */
 /*	into the primary register */

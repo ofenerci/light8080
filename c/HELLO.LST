@@ -74,7 +74,7 @@ AS80 Assembler for i8080-Z180 [1.11].                                Page    1
 
 63 labels used
 
-924 lines read, no errors in pass 1.
+919 lines read, no errors in pass 1.
 AS80 Assembler for i8080-Z180 [1.11].                                Page    3
 --------------------------------- HELLO.ASM ----------------------------------
 
@@ -894,16 +894,12 @@ AS80 Assembler for i8080-Z180 [1.11].                                Page    1
                         ;{
                         ;	// configure UART baud rate - set to 9600 for 30MHz 
                         ;	// BAUD = round(<clock>/<baud rate>/16) = round(30e6
-                        ;//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOT
-                        ;//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOT
-                        ;//	UBAUDL = 195;
-                        ;	UBAUDL = 1;
-0330 : 210100           	ld hl,1
+                        ;	// Note: Usage of a minimum divider value of 1 will 
+                        ;	UBAUDL = 195;
+0330 : 21c300           	ld hl,195
 0333 : 7d               	ld a,l
 0334 : d381             	out (129),a
                         
-                        ;//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOT
-                        ;//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOT
                         ;	UBAUDH = 0;
 0336 : 210000           	ld hl,0
 0339 : 7d               	ld a,l
@@ -920,13 +916,13 @@ AS80 Assembler for i8080-Z180 [1.11].                                Page    1
 0345 : 7d               	ld a,l
 0346 : d385             	out (133),a
                         
-AS80 Assembler for i8080-Z180 [1.11].                                Page   16
---------------------------------- HELLO.ASM ----------------------------------
-
                         ;	P2DATA = 0x00;
 0348 : 210000           	ld hl,0
 034b : 7d               	ld a,l
 034c : d386             	out (134),a
+AS80 Assembler for i8080-Z180 [1.11].                                Page   16
+--------------------------------- HELLO.ASM ----------------------------------
+
                         
                         ;	P2DIR = 0xff;
 034e : 21ff00           	ld hl,255
@@ -942,7 +938,6 @@ AS80 Assembler for i8080-Z180 [1.11].                                Page    1
                         ;	// enable CPU interrupt 
                         ;#asm 
 035a : fb               	ei 
-                        ;	
                         ;	// print message 
                         ;	printstr("Hello World!!!"); nl();
 035b : 21ea03           	ld hl,cc1+26
@@ -985,14 +980,14 @@ AS80 Assembler for i8080-Z180 [1.11].                                Page    1
                         ;	// assert bit 0 of port 1 to test external interrupt
                         ;	P1DATA = 0x01;
 03a0 : 210100           	ld hl,1
-AS80 Assembler for i8080-Z180 [1.11].                                Page   17
---------------------------------- HELLO.ASM ----------------------------------
-
 03a3 : 7d               	ld a,l
 03a4 : d384             	out (132),a
                         
                         ;		
                         ;	printstr("Echoing received bytes: "); nl();
+AS80 Assembler for i8080-Z180 [1.11].                                Page   17
+--------------------------------- HELLO.ASM ----------------------------------
+
 03a6 : 211304           	ld hl,cc1+67
 03a9 : e5               	push hl
 03aa : cdc401           	call __printstr

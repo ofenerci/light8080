@@ -778,16 +778,12 @@ __main:
 ;{
 ;	// configure UART baud rate - set to 9600 for 30MHz clock 
 ;	// BAUD = round(<clock>/<baud rate>/16) = round(30e6/9600/16) = 195 
-;//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTI
-;//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTI
-;//	UBAUDL = 195;
-;	UBAUDL = 1;
-	ld hl,1
+;	// Note: Usage of a minimum divider value of 1 will accelerate the RTL simulation. 
+;	UBAUDL = 195;
+	ld hl,195
 	ld a,l
 	out (129),a
 
-;//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTI
-;//MOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTIMOTI
 ;	UBAUDH = 0;
 	ld hl,0
 	ld a,l
@@ -823,7 +819,6 @@ __main:
 ;	// enable CPU interrupt 
 ;#asm 
 	ei 
-;	
 ;	// print message 
 ;	printstr("Hello World!!!"); nl();
 	ld hl,cc1+26
