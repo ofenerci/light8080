@@ -1050,8 +1050,12 @@ end
 always @(posedge clk)
 begin
     if (we)
+    begin
         ram[addr] <= din;
-    dout <= ram[addr];
+        dout <= din;
+    end
+    else
+        dout <= ram[addr];
 end
 
 endmodule
