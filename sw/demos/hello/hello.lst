@@ -4,7 +4,7 @@
 0004   0000             ; Should be used with SoC vhdl\soc\l80soc.vhdl
 0005   0000             ; Assembler format compatible with TASM for DOS and Linux.
 0006   0000             ;*******************************************************************************
-0007   0000             ; This program will print a Hello message to a 19200/8/N/1 serial port, then 
+0007   0000             ; This program will print a Hello message to a 9600/8/N/1 serial port, then 
 0008   0000             ; will loop forever copying the input port P1 to the output port P2. 
 0009   0000             ; This demo is meant to be used as a starting point for those wanting to play 
 0010   0000             ; with the l80soc core -- which in turn is little more than an usage example
@@ -65,8 +65,8 @@
 0065   0069 21 F0 00              lxi   h,rx_buffer
 0066   006C 22 EE 00              shld  ptr_rx
 0067   006F                       ; Set up UART baud rate to 9600 bauds @ 50MHz:
-0068   006F                       ; (50E6 / 16) / 9600 = 325d = 145h
-0069   006F 3E 14                 mvi   a,14h           ;
+0068   006F                       ; (50E6 / 9600) = 5208d = 1458h
+0069   006F 3E 14                 mvi   a,14h           
 0070   0071 D3 83                 out   UART_BAUDH
 0071   0073 3E 58                 mvi   a,58h
 0072   0075 D3 82                 out   UART_BAUDL

@@ -6,7 +6,7 @@
 @rem Set the program name.
 @set PROG=hello
 @rem Edit to point to the directory you installed TASM in.
-@set TASM_DIR=..\..\local\tasm
+@set TASM_DIR=..\..\..\local\tasm
 @rem Remove output from previous assembly.
 @del %PROG%.hex
 @del %PROG%.lst

@@ -59,7 +59,7 @@ use ieee.numeric_std.all;
 --    If the stop bit is not valid (not high) then the interrupt is not 
 --    triggered. If a start bit is determined to be spurious (i.e. the falling
 --    edge is detected but the bit value when sampled is not 0) then the
-c
+--    interrupt is not triggered.
 --    This interrupt sets flag RxIrw in the status register.
 -- -# Transmitter interrupt: Raised at the end of the transmission of the stop
 --    bit.
