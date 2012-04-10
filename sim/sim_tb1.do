@@ -6,7 +6,7 @@ vcom -93 -explicit  ../vhdl/light8080.vhdl
 ## Utility package with object code loading function
 vcom -93 -explicit  ../vhdl/soc/l80pkg.vhdl
 ## Object code for TB1
-vcom -93 -explicit  ../src/tb/tb1/obj_code_pkg.vhdl
+vcom -93 -explicit  ../sw/tb/tb1/obj_code_pkg.vhdl
 ## Test bench entity
 vcom -93 -explicit  ../vhdl/test/light8080_tb.vhdl
 ## Set a few Modelsim options 

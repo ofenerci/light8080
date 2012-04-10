@@ -68,10 +68,10 @@ begin
   process
   begin
     -- Assert reset for at least one full clk period
-    buttons(3) <= '0';
+    buttons(0) <= '0';
     wait until clk = '1';
     wait for T/2;
-    buttons(3) <= '1';
+    buttons(0) <= '1';
 
     -- Remember to 'cut away' the preceding 3 clk semiperiods from 
     -- the wait statement...
