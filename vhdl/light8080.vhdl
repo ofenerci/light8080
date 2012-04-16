@@ -735,7 +735,9 @@ signal do_daa :       std_logic; -- ALU operation is DAA
 signal clear_cy :     std_logic; -- Instruction unconditionally clears CY
 signal clear_ac :     std_logic; -- Instruction unconditionally clears AC
 signal set_ac :       std_logic; -- Instruction unconditionally sets AC
-signal flag_ac :      std_logic; -- new computed half carry flag
+signal flag_ac :      std_logic; -- New computed half carry (AC) flag
+signal flag_ac_daa :  std_logic; -- AC flag computed in the special case of DAA
+signal flag_ac_and :  std_logic; -- AC flag computed in the special case of AN*
 -- flag_aux_cy: new computed half carry flag (used in 16-bit ops)
 signal flag_aux_cy :  std_logic;
 signal load_psw :     std_logic; -- load F register
@@ -762,8 +764,6 @@ signal arith_res :    std_logic_vector(8 downto 0);
 signal arith_res8 :   std_logic_vector(7 downto 0);  
 
 -- ALU DAA intermediate signals (DAA has fully dedicated logic)
-signal daa_res :      std_logic_vector(8 downto 0);
-signal daa_res8 :     std_logic_vector(7 downto 0);
 signal daa_res9 :     std_logic_vector(8 downto 0);    
 signal daa_test1 :    std_logic;  
 signal daa_test1a :   std_logic;  
@@ -771,6 +771,10 @@ signal daa_test2 :    std_logic;
 signal daa_test2a :   std_logic;  
 signal arith_daa_res :std_logic_vector(7 downto 0);     
 signal cy_daa :       std_logic;
+signal acc_low_gt9 :  std_logic;
+signal acc_high_gt9 : std_logic;
+signal acc_high_ge9 : std_logic;
+signal daa_adjust :   std_logic_vector(8 downto 0);     
     
 -- ALU CY flag intermediate signals
 signal cy_in_sgn :    std_logic;
@@ -841,7 +845,7 @@ load_al <= ucode(24);
 load_addr <= ucode(25);
 
 do_cy_op_d <= '1' when ucode(5 downto 2)="1011" else '0'; -- decode CY ALU op
-do_cpc_d <= ucode(0); -- decode CPC ALU op
+do_cpc_d <= ucode(0); -- decode CPC ALU op; valid only when do_cy_op_d='1'
 
 -- uinst jump command, either unconditional or on a given condition
 uc_do_jmp <= uc_jsr or (uc_tjsr and condition_reg);
@@ -1177,38 +1181,86 @@ arith_res8 <= arith_res(7 downto 0);
 cy_adder <= arith_res(8);
 
 --##### DAA dedicated logic
--- Note a DAA takes 2 cycles to complete! 
+-- Intel documentation does not cover many details of this instruction.
+-- It has been experimentally determined that the following is the algorithm 
+-- employed in the actual original silicon:
+--
+-- 1.- If ACC(3..0) > 9 OR AC=1 then add 06h to ACC.
+-- 2.- If (ACC(7..4) > 9 OR AC=1) OR (ACC(7..4)==9 AND (CY=1 OR ACC(3..0) > 9))
+--     then add 60h to ACC.
+-- Steps 1 and 2 are performed in parallel.
+-- AC = 1 iif ACC(3..0) >= 10
+-- CY = 1 if CY was already 1 OR 
+--           (ACC(7..4)>=9 AND ACC(3..0)>=10) OR
+--           ACC(7..4)>=10
+--        else CY is zero.
 
---daa_test1a='1' when daa_res9(7 downto 4) > 0x06
-daa_test1a <= arith_op2(3) and (arith_op2(2) or arith_op2(1) or arith_op2(0));  
-daa_test1 <= '1' when flag_reg(4)='1' or daa_test1a='1' else '0';
+-- Note a DAA takes 2 cycles to complete; the adjutment addition is registered 
+-- so that it does not become the speed bottleneck. The DAA microcode will 
+-- execute two ALU DAA operations in a row before taking the ALU result.
 
+-- '1' when ACC(3..0) > 9
+acc_low_gt9 <= '1' when 
+  conv_integer(arith_op2(3 downto 0)) > 9
+  --arith_op2(3 downto 2)="11" or arith_op2(3 downto 1)="101"
+  else '0';
+
+-- '1' when ACC(7..4) > 9  
+acc_high_gt9 <= '1' when 
+  conv_integer(arith_op2(7 downto 4)) > 9
+  --arith_op2(7 downto 6)="11" or arith_op2(7 downto 5)="101"
+  else '0';
+
+-- '1' when ACC(7..4) >= 9
+acc_high_ge9 <= '1' when 
+  conv_integer(arith_op2(7 downto 4)) >= 9
+  else '0';
+
+-- Condition for adding 6 to the low nibble
+daa_test1 <= '1' when 
+  acc_low_gt9='1' or    -- A(3..0) > 9
+  flag_reg(4)='1'       -- AC set
+  else '0';
+
+-- condition for adding 6 to the high nibble
+daa_test2 <= '1' when
+  (acc_high_gt9='1' or  -- A(7..4) > 9
+  flag_reg(0)='1') or   -- CY set 
+  (daa_test2a = '1')    -- condition below
+  else '0';
+
+-- A(7..4)==9 && (CY or ACC(3..0)>9)
+daa_test2a <= '1' when
+  arith_op2(7 downto 4)="1001" and (flag_reg(0)='1' or acc_low_gt9='1')
+  else '0';
+ 
+-- daa_adjust is what we will add to ACC in order to adjust it to BCD 
+daa_adjust(3 downto 0) <= "0110" when daa_test1='1' else "0000";  
+daa_adjust(7 downto 4) <= "0110" when daa_test2='1' else "0000"; 
+daa_adjust(8) <= '0';
+
+-- The adder is registered so as to improve the clock rate. This takes the DAA
+-- logic out of the critical speed path at the cost of an extra cycle for DAA,
+-- which is a good compromise.
+daa_adjutment_adder:
 process(clk)
 begin
   if clk'event and clk='1' then
-    if reset='1' then
-      daa_res9 <= "000000000";
-    else
-      if daa_test1='1' then
-        daa_res9 <= arith_op2 + "000000110";
-      else
-        daa_res9 <= arith_op2;
-      end if;
-    end if;
+    daa_res9 <= arith_op2 + daa_adjust;
   end if;
-end process;
+end process daa_adjutment_adder;
 
---daa_test2a='1' when daa_res9(7 downto 4) > 0x06 FIXME unused?
-daa_test2a <= daa_res9(7) and (daa_res9(6) or daa_res9(5) or daa_res9(4));
-daa_test2 <= '1' when flag_reg(0)='1' or daa_test1a='1' else '0';
+-- AC flag raised if the low nibble was > 9, cleared otherwise.
+flag_ac_daa <= acc_low_gt9;
 
-daa_res <= '0'&daa_res9(7 downto 0) + "01100000" when daa_test2='1' 
-           else daa_res9;
-
-cy_daa <= daa_res(8);
+-- CY flag raised if the condition above holds, otherwise keeps current value.
+cy_daa <= '1' when
+  flag_reg(0)='1' or  -- If CY is already 1, keep value 
+  ( (acc_high_ge9='1' and acc_low_gt9='1') or (acc_low_gt9='1')  )
+  else '0';
 
 -- DAA vs. adder mux
-arith_daa_res <= daa_res(7 downto 0) when do_daa='1' else arith_res8;  
+arith_daa_res <= daa_res9(7 downto 0) when do_daa='1' else arith_res8;  
 
 -- DAA vs. adder CY mux
 cy_arith <= cy_daa when do_daa='1' else cy_adder;
@@ -1250,17 +1302,24 @@ flag_s <= alu_output(7);
 flag_p <= not(alu_output(7) xor alu_output(6) xor alu_output(5) xor alu_output(4) xor
          alu_output(3) xor alu_output(2) xor alu_output(1) xor alu_output(0));
 flag_z <= '1' when alu_output=X"00" else '0';
--- AC is either the CY from bit 4 OR 0 if the instruction clears it implicitly
-flag_ac <= '1' when set_ac = '1' else
-           '0' when clear_ac = '1' else
-            (arith_op1(4) xor arith_op2_sgn(4) xor alu_output(4));
 
+-- AC is either the CY from bit 4 OR 0 if the instruction clears it implicitly
+flag_ac <= flag_ac_and when set_ac = '1' and do_daa='0' else
+           '0' when clear_ac = '1' else
+           flag_ac_daa when do_daa = '1' else
+            (arith_op1(4) xor arith_op2_sgn(4) xor alu_output(4));
+            
+-- AN* instructions deal with AC flag a bit differently
+flag_ac_and <= T1(3) or T2(3);            
+            
 -- CY comes from the adder or the shifter, or is 0 if the instruction 
 -- implicitly clears it.
 flag_cy_1 <=  '0'       when clear_cy = '1' else
               cy_arith  when use_logic = '1' and clear_cy = '0' else
               cy_shifter;
+-- CY can also be explicitly set or complemented by STC and CMC
 flag_cy_2 <= not flag_reg(0) when do_cpc='0' else '1'; -- cmc, stc
+-- No do the actual CY update
 flag_cy <= flag_cy_1 when do_cy_op='0' else flag_cy_2;
   
 flag_aux_cy <= cy_adder;
