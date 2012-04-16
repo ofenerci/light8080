@@ -26,7 +26,7 @@ architecture behavior of c2sb_soc_tb is
 constant T : time := 100 ns;
 
 -- MAX_SIM_LENGTH: maximum simulation time
-constant MAX_SIM_LENGTH : time := T*7000; -- enough for most purposes
+constant MAX_SIM_LENGTH : time := T*7000000; -- enough for most purposes
 
 
 --------------------------------------------------------------------------------
@@ -35,6 +35,7 @@ signal clk :              std_logic := '0';
 signal done :             std_logic := '0';
 signal buttons :          std_logic_vector(3 downto 0);
 signal green_leds :       std_logic_vector(7 downto 0);
+signal txd :              std_logic;
 
 begin
 
@@ -45,7 +46,8 @@ begin
     clk_50MHz =>        clk,
     buttons =>          buttons,
     
-    rxd =>              '0',
+    rxd =>              txd,
+    txd =>              txd,
     flash_data =>       (others => '0'),
     switches =>         (others => '0'),
     sd_data =>          '0',

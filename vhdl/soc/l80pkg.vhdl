@@ -39,6 +39,10 @@ type ram_t is array(integer range <>) of std_logic_vector(7 downto 0);
 -- of a BRAM.
 function objcode_to_bram(oC : obj_code_t; size : integer) return ram_t;
 
+-- Compute log2(A), rounding up. 
+-- Use this to get the minimum width of the address bus necessary to
+-- address A locations.
+function log2(A : natural) return natural;
 
 end package;
 
@@ -69,5 +73,16 @@ begin
     
     return br;
 end function objcode_to_bram;
+
+
+function log2(A : natural) return natural is
+begin
+    for I in 1 to 30 loop -- Works for up to 32 bit integers
+        if(2**I >= A) then 
+            return(I);
+        end if;
+    end loop;
+    return(30);
+end function log2;
 
 end package body;

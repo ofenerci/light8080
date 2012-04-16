@@ -2,11 +2,16 @@
 -- l80soc : light8080 SOC
 --##############################################################################
 -- v1.0    (27 mar 2012) First release. Jose A. Ruiz.
+-- v2.0    (16 apr 2012) Made interface a bit more useable, added comments.
+-- 
+-- This SoC is meant as an usage example for the light8080 core. The code shows
+-- how to interface the core to internal BRAM and other modules.
+-- This module is not meant to be used in real applications though it can be
+-- used as the starting point for one.
 --
+-- Please see the comments below for usage instructions.
+-- 
 -- This file and all the light8080 project files are freeware (See COPYING.TXT)
---##############################################################################
--- (See timing diagrams at bottom of file. More comprehensive explainations can 
--- be found in the design notes)
 --##############################################################################
 
 library ieee;
@@ -17,12 +22,71 @@ use work.l80pkg.all;
 
 
 --##############################################################################
+-- Interface pins:
+------------------
+-- p1in :     Input port P1.
+-- p2out :    Output port P2.
+-- rxd :      UART RxD pin.
+-- txd :      UART TxD pin.
+-- extint :   External interrupt inputs, wired straight to the irq controller.
+--            EXCEPT for the one used by the UART -- see generic UART_IRQ_LINE.
+-- clk :      Master clock, rising edge active.
+-- reset :    Synchronous reset, 1 cycle active to reset all SoC.
 --
+--------------------------------------------------------------------------------
+-- Generics:
+------------
+-- OBJ_CODE (mandatory, no default value):  
+-- Table that will be used to initialize internal BRAM, starting at address 0.
+--
+-- DEFAULT_RAM_SIZE (default = 0):
+-- Internal RAM size. If set to zero, the RAM size will be determined from the 
+-- size of OBJ_CODE as the smallest power of 2 larger than OBJ_CODE'length.
+--
+-- UART_IRQ_LINE (defaults to 4):
+-- Index of the irq controller input the internal UART is wired to, or >3 to 
+-- leave the UART unconnected to the IRQ controller.
+-- The irq controller input used for the uart will be unconnected to the SoC
+-- input port.
+--
+-- UART_HARDWIRED (defaults to true):
+-- True when the UART baud rate is hardwired. the baud rate registers will be
+-- 
+-- BAUD_RATE (defaults to 19200):
+-- UART default baud rate. When th UART is hardwired, the baud rate can't be
+-- changed at run time. 
+-- Note that you have to set generic z. This value is needed to compute the 
+-- UART baud rate constants.
+--
+--------------------------------------------------------------------------------
+-- I/O port map:
+----------------
+--
+-- 080h..083h     UART registers.
+-- 084h           P1 input port (read only, writes are ignored).
+-- 086h           P2 output port (write only, reads undefined data).
+-- 088h           IRQ enable register.
+--
+-- Please see the comments in the source of the relevant modules for a more
+-- detailed explanation of their behavior.
+--
+-- All i/o  ports other than the above read as 00h.
+--------------------------------------------------------------------------------
+-- Notes:
+---------
+-- -# If you do not set a default memory size, you then have to take care to 
+--    control the size of the object code table.
+-- -# If you do set the default memory size, the code will not warn you if the
+--    object code does not fit inside, it will silentl truncate it.
+-- -# The internal memory block is mirrored over the entire address map. 
+-- -# There is no write protection to any address range: you can overwrite the 
+--    program. If you do that there's no way to recover it but reloading the 
+--    FPGA, a reset will not do.
 --##############################################################################
 entity l80soc is
     generic (
       OBJ_CODE      : obj_code_t;       -- RAM initialization constant 
-      RAM_ADDR_SIZE : integer := 12;    -- RAM address width
+      DEFAULT_RAM_SIZE: integer := 0;   -- RAM size or 0 to stretch
       UART_IRQ_LINE : integer := 4;     -- [0..3] or >3 for none
       UART_HARDWIRED: boolean := true;  -- UART baud rate is hardwired
       BAUD_RATE     : integer := 19200; -- UART (default) baud rate
@@ -47,6 +111,27 @@ end l80soc;
 --##############################################################################
 
 architecture hardwired of l80soc is
+
+-- Helper functions ------------------------------------------------------------
+
+
+-- soc_ram_size: compute size of internal RAM 
+-- If default_size is /= 0, the size is the default. If it is zero, then the
+-- size the smallest power of 2 larger than obj_code_size.
+function soc_ram_size(default_size, obj_code_size: integer) return integer is
+begin
+  if default_size=0 then
+    -- Default is zero: use a RAM as big as necessary for the obj code table
+    -- rounding to the neares power of 2.
+    return 2**log2(obj_code_size);
+  else
+    -- Default is not zero: use the default and do NOT check to see if the 
+    -- object code fits.
+    return default_size;
+  end if;
+end function soc_ram_size;
+
+-- Custom types ----------------------------------------------------------------
 
 subtype t_byte is std_logic_vector(7 downto 0);
 
@@ -88,12 +173,13 @@ signal uart_irq :     std_logic;
 
 -- RAM -------------------------------------------------------------------------
 
-constant RAM_SIZE : integer := 4096;--2**RAM_ADDR_SIZE;
+constant RAM_SIZE : integer := soc_ram_size(DEFAULT_RAM_SIZE,OBJ_CODE'length);
+constant RAM_ADDR_SIZE : integer := log2(RAM_SIZE);
 
 signal ram_rd_data :  std_logic_vector(7 downto 0);
 signal ram_we :       std_logic;
 
-signal ram :          ram_t(0 to RAM_SIZE-1) := objcode_to_bram(OBJ_CODE, RAM_SIZE);
+signal ram :      ram_t(0 to RAM_SIZE-1) := objcode_to_bram(OBJ_CODE, RAM_SIZE);
 signal ram_addr :     std_logic_vector(RAM_ADDR_SIZE-1 downto 0);
 
 -- IRQ controller interface ----------------------------------------------------
@@ -114,6 +200,7 @@ constant ADDR_UART_3 : io_addr_t  := X"83"; -- UART registers (80h..83h)
 constant P1_DATA_REG : io_addr_t  := X"84"; -- port 1 data register 
 constant P2_DATA_REG : io_addr_t  := X"86"; -- port 2 data register 
 constant INTR_EN_REG : io_addr_t  := X"88"; -- interrupts enable register 
+
 
 begin
 
