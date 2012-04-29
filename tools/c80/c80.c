@@ -2233,6 +2233,7 @@ char c;
 	else 
 		return 0;
 }
+
 pstr(val)
 int val[];
 {	

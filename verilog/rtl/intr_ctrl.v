@@ -61,13 +61,12 @@ input	[3:0]	intr_ena;	// set high to enable respective interrupt
 
 //---------------------------------------------------------------------------------------
 // 8080 assembly code constants 
-// call instruction opcode used to call interrupt routine 
-`define CALL_INST			8'hcd 
-// interrupt vectors fixed addresses - high address byte is 0 
-`define INT0_VEC			8'h08
-`define INT1_VEC			8'h18
-`define INT2_VEC			8'h28
-`define INT3_VEC			8'h38
+// RST instruction opcode used to call interrupt routines at addresses 
+// int0: 0x08 / int1: 0x18 / int2: 0x28 / int3: 0x38 
+`define RST_1_INST			8'hcf
+`define RST_3_INST			8'hdf
+`define RST_5_INST			8'hef
+`define RST_7_INST			8'hff
 
 //---------------------------------------------------------------------------------------
 // internal declarations 
@@ -105,23 +104,20 @@ begin
 					// switch to next state 
 					intSq <= 2'd1;
 				end 
-			default:	// all other states increment the state register on inta read 
+			2'd1:		// wait for inta read cycle 
 				if (cpu_inta && cpu_rd)
 				begin 
-					// update state 
-					intSq <= intSq + 1;
-					
-					// update instruction opcode for each byte read during inta 
-					case (intSq) 
-						2'd1:		cpu_inst <= `CALL_INST;
-						2'd2:		cpu_inst <= int_vec;
-						default:	cpu_inst <= 8'd0;
-					endcase 
+					// update instruction opcode 
+					cpu_inst <= int_vec;
+					// switch to end for inta release 
+					intSq <= 2'd2;
 				end 
-				else if (!cpu_inta) 
+			default:	// wait for inta end 
+				if (!cpu_inta) 
 				begin 
-					intSq <= 2'd0;
-					cpu_inst <= 8'd0;
+					// reset state machine 
+					intSq <= 2'b0;
+					cpu_inst <= 8'b0;
 				end 
 		endcase 
 	end 
@@ -131,10 +127,10 @@ end
 always @ (intSel)
 begin 
 	case (intSel) 
-		2'd0:	int_vec <= `INT0_VEC;
-		2'd1:	int_vec <= `INT1_VEC;
-		2'd2:	int_vec <= `INT2_VEC;
-		2'd3:	int_vec <= `INT3_VEC;
+		2'd0:	int_vec <= `RST_1_INST;
+		2'd1:	int_vec <= `RST_3_INST;
+		2'd2:	int_vec <= `RST_5_INST;
+		2'd3:	int_vec <= `RST_7_INST;
 	endcase 
 end 
 
@@ -152,7 +148,7 @@ assign cpu_intr = |act_int;
 // clear serviced interrupt 
 always @ (cpu_inta or cpu_rd or intSq or intSel) 
 begin 
-	if (cpu_inta && cpu_rd && (intSq == 2'd3))
+	if (cpu_inta && cpu_rd && (intSq == 2'd1))
 	begin 
 		case (intSel) 
 			2'd0:	int_clr <= 4'b0001;
